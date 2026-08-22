@@ -1,34 +1,46 @@
-# DayFlow - Modern HRMS Architecture
+# DayFlow – Modern Human Resource Management System (HRMS)
 
-**DayFlow** is an enterprise Human Resource Management System (HRMS) built with a modular, 3-tier architecture: **Frontend**, **Backend**, and **Database**.
+**DayFlow** is a modern enterprise Human Resource Management System designed to digitize and streamline core HR operations, attendance tracking, leave requests, payroll processing, and employee management.
 
 Repository: [`https://github.com/adityajha77/Oddo-DayFlow`](https://github.com/adityajha77/Oddo-DayFlow)
 
 ---
 
-## 📁 Repository Structure
+## 🏗 Modular 3-Tier Architecture
+
+DayFlow is structured into three distinct, decoupled directories for maximum scalability, maintainability, and clean separation of concerns:
 
 ```
 Oddo-DayFlow/
 ├── frontend/             # React 18 + Vite + TypeScript + Tailwind CSS UI
-│   ├── src/              # Components, hooks, styles, main app entry
+│   ├── src/              # Dashboard, components, hooks, styles
 │   ├── package.json
 │   └── vite.config.ts
 ├── backend/              # Express.js + TypeScript + Prisma ORM REST API
 │   ├── src/              # Controllers, routes, Prisma config, server entry
-│   ├── prisma/           # Prisma PostgreSQL schema & migrations
+│   ├── prisma/           # Prisma PostgreSQL schema & definitions
 │   ├── package.json
 │   └── .env.example
 ├── database/             # Database architecture documentation & Prisma schemas
 │   ├── prisma/           # Schema definition for PostgreSQL models
-│   └── README.md         # Database migration guide
-├── .gitignore            # Root git ignore rule definitions
-└── README.md             # Project overview & developer quickstart
+│   └── README.md         # Database migration & schema documentation
+├── .gitignore            # Global Git ignore definitions
+└── README.md             # Project overview & developer guide
 ```
 
 ---
 
-## ⚡ Developer Quickstart
+## ✨ Key Features
+
+- **Employee Portal & Directory**: Staff onboarding, roles (Employee / HR Officer), profile management.
+- **Attendance Management**: Daily check-in/check-out tracking, total hours calculation, attendance log.
+- **Leave Operations**: Multi-type leave requests (Annual, Sick, Casual), approval/rejection workflows.
+- **Payroll Visibility**: Detailed payslip views, salary breakdown (basic, allowances, deductions).
+- **Prisma & PostgreSQL Database**: Type-safe relational database queries and automated migrations.
+
+---
+
+## ⚡ Quickstart Guide
 
 ### 1. Frontend Setup
 ```bash
@@ -36,7 +48,7 @@ cd frontend
 npm install
 npm run dev
 ```
-The frontend UI will launch at `http://localhost:5173`.
+Access the application UI at `http://localhost:5173`.
 
 ---
 
@@ -45,14 +57,14 @@ The frontend UI will launch at `http://localhost:5173`.
 cd backend
 npm install
 cp .env.example .env
-# Configure your DATABASE_URL in .env for PostgreSQL
+# Set your DATABASE_URL in .env
 npm run dev
 ```
-The Express backend REST API will run at `http://localhost:5000`.
+Access the Express REST API at `http://localhost:5000`.
 
 ---
 
-### 3. Database Migration (PostgreSQL + Prisma)
+### 3. Database Migration (Prisma + PostgreSQL)
 ```bash
 cd backend
 npm run prisma:generate
