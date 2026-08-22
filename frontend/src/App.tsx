@@ -1,4 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { LandingHeader } from './components/LandingHeader';
+import { LandingHero } from './components/LandingHero';
+import { LandingFeatures } from './components/LandingFeatures';
+import { LandingStories } from './components/LandingStories';
+import { LandingCTA } from './components/LandingCTA';
+import { LandingFooter } from './components/LandingFooter';
 import {
   ArrowLeft,
   Bell,
@@ -524,45 +530,13 @@ function App() {
 /* === Landing Component === */
 function Home({ onOpenWorkspace, onSignIn }: { onOpenWorkspace: () => void; onSignIn: () => void }) {
   return (
-    <div className="landing-page">
-      <section className="landing-hero">
-        <div className="landing-nav">
-          <div className="landing-brand"><div className="brand-mark"><Grid2X2 size={17} /></div><span>dayflow<span>.</span></span></div>
-          <div className="landing-links"><a href="#features">Features</a><a href="#benefits">Benefits</a><a href="#stories">Stories</a><a href="#contact">Contact</a></div>
-          <div className="landing-nav-actions">
-            <button className="landing-ghost" onClick={onSignIn}>Sign in</button>
-            <button className="landing-dark" onClick={onOpenWorkspace}>Open workspace <ChevronRight size={15} /></button>
-          </div>
-        </div>
-        <div className="hero-copy">
-          <span className="hero-pill">One workspace for every workday</span>
-          <h1>HR operations with <em>real-time</em> clarity.</h1>
-          <p>Dayflow brings people, attendance, payroll, and everyday work into one calm, beautifully organized workspace.</p>
-          <button className="hero-cta" onClick={onOpenWorkspace}>Explore the workspace <ChevronRight size={16} /></button>
-        </div>
-        <div className="hero-visual">
-          <div className="hero-float float-left"><strong>18</strong><span>people online</span><div className="float-dots"><i /><i /><i /><i /></div></div>
-          <div className="hero-image-frame"><img src="https://images.pexels.com/photos/8117466/pexels-photo-8117466.jpeg?auto=compress&cs=tinysrgb&h=650&w=940" alt="Dayflow workspace preview" /></div>
-          <div className="hero-float float-right"><div className="float-check"><Check size={13} /></div><strong>96.4%</strong><span>attendance rate</span></div>
-        </div>
-        <div className="hero-rule" />
-      </section>
-      <section className="landing-section" id="features">
-        <div className="section-intro">
-          <span className="hero-pill">Everything in sync</span>
-          <h2>A calmer way to run<br /><em>your workday.</em></h2>
-          <p>Less switching. More doing. Dayflow gives your team a clear view of what matters now and what comes next.</p>
-        </div>
-        <div className="feature-bento">
-          <div className="feature-panel feature-yellow"><span className="feature-tag">Smart scheduling</span><h3>Make every hour<br />count.</h3><p>Manage meetings, interviews, and focus time from one intelligent calendar.</p></div>
-          <div className="feature-panel feature-lilac"><span className="feature-tag">Attendance insights</span><h3>Know how your<br />team is doing.</h3><div className="feature-numbers"><strong>95% <small>Present</small></strong><strong>3% <small>On leave</small></strong></div></div>
-          <div className="feature-panel feature-mint"><span className="feature-tag">Payroll visibility</span><h3>Compensation,<br />made simple.</h3></div>
-        </div>
-      </section>
-      <footer className="landing-footer" id="contact">
-        <div className="landing-brand"><div className="brand-mark"><Grid2X2 size={17} /></div><span>dayflow<span>.</span></span></div>
-        <p>© 2026 Dayflow workspace.</p>
-      </footer>
+    <div className="landing-page" role="main">
+      <LandingHeader onOpenDashboard={onOpenWorkspace} theme="light" setTheme={() => {}} />
+      <LandingHero onOpenDashboard={onOpenWorkspace} />
+      <LandingFeatures />
+      <LandingStories />
+      <LandingCTA onOpenDashboard={onOpenWorkspace} />
+      <LandingFooter />
     </div>
   );
 }
