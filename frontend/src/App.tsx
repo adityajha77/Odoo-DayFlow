@@ -412,11 +412,6 @@ function App() {
           </div>
 
           <div className="topbar-actions">
-            {currentUser && (
-              <span className="pending-badge" title="Pending tasks">
-                <ListChecks size={14} /> {pendingTasksCount} Pending Tasks
-              </span>
-            )}
             <label className="search-box">
               <Search size={17} />
               <input placeholder="Search anything" />
@@ -511,6 +506,7 @@ function App() {
             setDate={setDate}
             tasks={tasks}
             pendingTasksCount={pendingTasksCount}
+            onBackToHome={() => setActivePage('Home')}
             setToast={setToast}
           />
         ) : activePage === 'Profile' ? (
@@ -609,6 +605,7 @@ function Dashboard({
   setDate,
   tasks,
   pendingTasksCount,
+  onBackToHome,
   setToast,
 }: {
   user: UserProfile | null;
@@ -621,6 +618,7 @@ function Dashboard({
   setDate: (date: Date) => void;
   tasks: TaskItem[];
   pendingTasksCount: number;
+  onBackToHome: () => void;
   setToast: (message: string) => void;
 }) {
   const moveDate = (days: number) => {
@@ -858,9 +856,6 @@ function TaskBoard({
               </div>
             ))
           )}
-        </div>
-        <div className="task-image">
-          <img src="https://images.pexels.com/photos/7428211/pexels-photo-7428211.jpeg?auto=compress&cs=tinysrgb&h=650&w=940" alt="Task planning preview" />
         </div>
       </div>
     </section>
