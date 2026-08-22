@@ -387,11 +387,6 @@ function App() {
           </div>
 
           <div className="topbar-actions">
-            {currentUser && (
-              <span className="pending-badge" title="Pending tasks">
-                <ListChecks size={14} /> {pendingTasksCount} Pending Tasks
-              </span>
-            )}
             <label className="search-box">
               <Search size={17} />
               <input placeholder="Search anything" />
@@ -468,9 +463,6 @@ function App() {
             setDate={setDate}
             tasks={tasks}
             pendingTasksCount={pendingTasksCount}
-            onToggleTask={handleToggleTask}
-            onDeleteTask={handleDeleteTask}
-            onOpenAddTask={() => setShowAddTaskModal(true)}
             onBackToHome={() => setActivePage('Home')}
             setToast={setToast}
           />
@@ -553,9 +545,6 @@ function Dashboard({
   setDate,
   tasks,
   pendingTasksCount,
-  onToggleTask,
-  onDeleteTask,
-  onOpenAddTask,
   onBackToHome,
   setToast,
 }: {
@@ -569,9 +558,6 @@ function Dashboard({
   setDate: (date: Date) => void;
   tasks: TaskItem[];
   pendingTasksCount: number;
-  onToggleTask: (id: string) => void;
-  onDeleteTask: (id: string) => void;
-  onOpenAddTask: () => void;
   onBackToHome: () => void;
   setToast: (message: string) => void;
 }) {
@@ -721,14 +707,6 @@ function Dashboard({
           <button className="full-link" onClick={() => setToast('Opening your team')}>See everyone <ChevronRight size={15} /></button>
         </div>
       </section>
-
-      <TaskBoard
-        tasks={tasks}
-        pendingTasksCount={pendingTasksCount}
-        onToggleTask={onToggleTask}
-        onDeleteTask={onDeleteTask}
-        onOpenAddTask={onOpenAddTask}
-      />
     </div>
   );
 }
@@ -789,9 +767,6 @@ function TaskBoard({
               </div>
             ))
           )}
-        </div>
-        <div className="task-image">
-          <img src="https://images.pexels.com/photos/7428211/pexels-photo-7428211.jpeg?auto=compress&cs=tinysrgb&h=650&w=940" alt="Task planning preview" />
         </div>
       </div>
     </section>
