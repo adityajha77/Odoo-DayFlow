@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   Bell,
@@ -744,6 +744,7 @@ function Dashboard({
               </div>
             ))}
           </div>
+          <button className="full-link" onClick={() => setToast('Opening your team')}>See everyone <ChevronRight size={15} /></button>
         </div>
       </section>
 
