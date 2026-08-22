@@ -157,7 +157,7 @@ function App() {
             localStorage.setItem('dayflow_user', JSON.stringify(data.user));
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     } else {
       localStorage.removeItem('dayflow_token');
       localStorage.removeItem('dayflow_user');
@@ -636,20 +636,6 @@ function Dashboard({
         </div>
       </section>
 
-    <section className="bottom-grid"><div className="activity-card card-surface"><div className="section-header"><div><span className="soft-label">YOUR WORKDAY</span><h2>Recent activity</h2></div><button className="text-button" onClick={() => setToast('Showing all recent activity')}>View all <ChevronRight size={15} /></button></div><div className="activity-list">{activities.map(({ title, detail, color, icon: Icon }) => <div className="activity-item" key={title}><div className={`activity-icon ${color}`}><Icon size={16} /></div><div className="activity-copy"><strong>{title}</strong><span>{detail}</span></div><span className="activity-arrow"><ChevronRight size={16} /></span></div>)}</div></div><div className="team-card card-surface"><div className="section-header"><div><span className="soft-label">PEOPLE AT DAYFLOW</span><h2>Team today</h2></div><button className="more-button"><MoreHorizontal size={18} /></button></div><div className="team-summary"><div className="avatar-stack">{people.map(person => <Avatar key={person.initials} initials={person.initials} tone={person.tone} small />)}<span className="more-avatars">+14</span></div><div><strong>18 teammates</strong><span>are active today</span></div></div><div className="people-list">{people.slice(0, 3).map(person => <div className="person-row" key={person.name}><Avatar initials={person.initials} tone={person.tone} small /><div><strong>{person.name}</strong><span>{person.role}</span></div><span className="online-dot" /></div>)}</div><button className="full-link" onClick={() => setToast(`Opening ${role === 'HR officer' ? 'employee directory' : 'your team'}`)}>See everyone <ChevronRight size={15} /></button></div></section>
-  </div>;
-}
-
-function TaskBoard({ setToast }: { setToast: (message: string) => void }) {
-  const [completed, setCompleted] = useState<number[]>([1]);
-  const tasks = [
-    ['09:00 – 10:00 AM', 'Review Q4 product brief', 'High'],
-    ['10:30 – 11:00 AM', 'Design team sync', 'Medium'],
-    ['01:30 – 02:30 PM', 'Prepare research summary', 'Low'],
-    ['03:00 – 04:00 PM', 'Share homepage concepts', 'Medium'],
-  ];
-  const toggleTask = (index: number) => { setCompleted(completed.includes(index) ? completed.filter(item => item !== index) : [...completed, index]); setToast(completed.includes(index) ? 'Task marked as open' : 'Task marked as complete'); };
-  return <section className="task-board card-surface"><div className="task-board-heading"><div><span className="soft-label">YOUR DAY AT A GLANCE</span><h2>My tasks</h2><p>Keep your priorities moving forward.</p></div><div className="task-heading-actions"><span className="task-progress">{completed.length} of {tasks.length} complete</span><button className="primary-button" onClick={() => setToast('New task started')}><Plus size={15} /> Add task</button></div></div><div className="task-list">{tasks.map(([time, title, priority], index) => <button className={`task-row ${completed.includes(index) ? 'task-complete' : ''}`} key={title} onClick={() => toggleTask(index)}><span className="task-check">{completed.includes(index) && <Check size={13} />}</span><span className="task-time">{time}</span><strong>{title}</strong><span className={`priority priority-${priority.toLowerCase()}`}>{priority}</span><ChevronRight size={15} /></button>)}</div></section>;
       <section className="hero-grid">
         <div className="checkin-card card-surface">
           <div className="card-topline">
