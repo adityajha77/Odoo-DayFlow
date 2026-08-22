@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { LandingHeader } from './components/LandingHeader';
 import { LandingHero } from './components/LandingHero';
 import { LandingFeatures } from './components/LandingFeatures';
@@ -6,7 +6,6 @@ import { LandingStories } from './components/LandingStories';
 import { LandingCTA } from './components/LandingCTA';
 import { LandingFooter } from './components/LandingFooter';
 import {
-  ArrowLeft,
   Bell,
   CalendarDays,
   Check,
@@ -16,6 +15,7 @@ import {
   CircleHelp,
   Clock3,
   FileText,
+  Filter,
   Grid2X2,
   Home as HomeIcon,
   LayoutDashboard,
@@ -31,6 +31,7 @@ import {
   ShieldCheck,
   Sun,
   Trash2,
+  UserPlus,
   UserRound,
   UsersRound,
   WalletCards,
@@ -47,7 +48,7 @@ export interface UserProfile {
   email: string;
   firstName: string;
   lastName: string;
-  gender: string; // 'Male' | 'Female' | 'Other' | 'Prefer not to say'
+  gender: string;
   roleTitle: string;
   department: string;
   role: UserRole;
@@ -63,7 +64,7 @@ export interface TaskItem {
   completed: boolean;
 }
 
-type Page = 'Home' | 'Overview' | 'My tasks' | 'Attendance' | 'Leave' | 'Payroll' | 'People' | 'Profile';
+type Page = 'Home' | 'Overview' | 'My tasks' | 'Attendance' | 'Leave' | 'Payroll' | 'People' | 'Profile' | 'Notifications';
 
 type NavItem = { label: Page; icon: typeof LayoutDashboard; adminOnly?: boolean };
 
@@ -75,6 +76,7 @@ const allNavItems: NavItem[] = [
   { label: 'Leave', icon: CalendarDays },
   { label: 'Payroll', icon: WalletCards, adminOnly: true },
   { label: 'People', icon: UsersRound, adminOnly: true },
+  { label: 'Notifications', icon: Bell },
 ];
 
 const initialTasks: TaskItem[] = [
@@ -136,20 +138,48 @@ function App() {
 
   const [activePage, setActivePage] = useState<Page>('Home');
   const [collapsed, setCollapsed] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+
+  // Dark mode state persisted in localStorage
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('dayflow_theme');
+    return saved ? saved === 'dark' : false;
+  });
+
   const [checkedIn, setCheckedIn] = useState(true);
-  const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [date, setDate] = useState(new Date());
   const [currentTime, setCurrentTime] = useState(new Date());
   const [toast, setToast] = useState('');
+
+  // Ref for notification click-outside auto-close
+  const notificationWrapRef = useRef<HTMLDivElement>(null);
 
   // Modals
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
 
-  // Sync token & user from backend database if token exists
+  // Save dark mode setting
+  useEffect(() => {
+    localStorage.setItem('dayflow_theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
+
+  // Click-outside listener for notifications dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (notificationWrapRef.current && !notificationWrapRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    }
+    if (showNotifications) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications]);
+
+  // Sync user token
   useEffect(() => {
     if (authToken) {
       localStorage.setItem('dayflow_token', authToken);
@@ -213,7 +243,7 @@ function App() {
       return;
     }
     setActivePage(page);
-    setShowRoleMenu(false);
+    setShowNotifications(false);
   };
 
   const handleOpenWorkspace = () => {
@@ -374,11 +404,6 @@ function App() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {activePage !== 'Home' && (
-              <button className="back-button" onClick={() => setActivePage('Home')}>
-                <ArrowLeft size={14} /> Back to Home
-              </button>
-            )}
             <div className="breadcrumbs">
               <span>Workspace</span>
               <ChevronRight size={14} />
@@ -399,49 +424,63 @@ function App() {
             </label>
             <div className="topbar-divider" />
 
+            {/* Static Non-Switchable Role Badge */}
             {currentUser ? (
               <div className="role-wrap">
-                <button className="role-button" onClick={() => setShowRoleMenu(!showRoleMenu)}>
+                <div className="role-badge-static">
                   <ShieldCheck size={16} />
                   <span>{currentUser.role === 'ADMIN' ? 'Admin Access' : 'Employee View'}</span>
-                  <ChevronDown size={14} />
-                </button>
-                {showRoleMenu && (
-                  <div className="role-menu">
-                    <span className="menu-label">Switch Role Profile</span>
-                    <button onClick={() => { setCurrentUser({ ...currentUser, role: 'EMPLOYEE' }); setShowRoleMenu(false); }}>
-                      Employee View {currentUser.role === 'EMPLOYEE' && <Check size={15} />}
-                    </button>
-                    <button onClick={() => { setCurrentUser({ ...currentUser, role: 'ADMIN' }); setShowRoleMenu(false); }}>
-                      Admin Access {currentUser.role === 'ADMIN' && <Check size={15} />}
-                    </button>
-                    <div style={{ height: '1px', background: 'var(--line)', margin: '6px 0' }} />
-                    <button onClick={() => { setShowOnboardingModal(true); setShowRoleMenu(false); }}>
-                      Edit Profile / Gender
-                    </button>
-                    <button onClick={handleLogout} style={{ color: '#ef4444' }}>
-                      <LogOut size={14} /> Sign out
-                    </button>
-                  </div>
-                )}
+                </div>
               </div>
             ) : (
               <button className="primary-button" onClick={() => setShowAuthModal(true)}>Sign In</button>
             )}
 
-            <button className="icon-button notification-button" onClick={() => setShowNotifications(!showNotifications)} aria-label="Notifications">
-              <Bell size={18} />
-              <span className="notification-dot" />
-            </button>
-            {showNotifications && (
-              <div className="notification-popover">
-                <div className="popover-heading"><strong>Notifications</strong><span>3 new</span></div>
-                <p><span className="tiny-dot mint-dot" /> Leave request approved</p>
-                <p><span className="tiny-dot blue-dot" /> New payslip available</p>
-                <p><span className="tiny-dot peach-dot" /> Team meeting in 30m</p>
-              </div>
-            )}
+            {/* Notification Popover with Auto-Close */}
+            <div ref={notificationWrapRef} style={{ position: 'relative' }}>
+              <button
+                className="icon-button notification-button"
+                onClick={() => setShowNotifications(!showNotifications)}
+                aria-label="Notifications"
+              >
+                <Bell size={18} />
+                <span className="notification-dot" />
+              </button>
+              {showNotifications && (
+                <div className="notification-popover">
+                  <div className="popover-heading">
+                    <strong>Notifications</strong>
+                    <span style={{ fontSize: '11px', color: 'var(--muted)' }}>3 new</span>
+                  </div>
+                  <div className="notification-item-row" onClick={() => changePage('Notifications')}>
+                    <span className="tiny-dot mint-dot" style={{ marginTop: '4px' }} />
+                    <div>
+                      <p>Leave request approved</p>
+                      <span>Yesterday at 04:36 PM</span>
+                    </div>
+                  </div>
+                  <div className="notification-item-row" onClick={() => changePage('Notifications')}>
+                    <span className="tiny-dot blue-dot" style={{ marginTop: '4px' }} />
+                    <div>
+                      <p>New payslip available for August</p>
+                      <span>Today at 10:15 AM</span>
+                    </div>
+                  </div>
+                  <div className="notification-item-row" onClick={() => changePage('Notifications')}>
+                    <span className="tiny-dot peach-dot" style={{ marginTop: '4px' }} />
+                    <div>
+                      <p>Team meeting scheduled</p>
+                      <span>Today at 11:30 AM</span>
+                    </div>
+                  </div>
+                  <button className="view-all-notifications-btn" onClick={() => changePage('Notifications')}>
+                    View all notifications
+                  </button>
+                </div>
+              )}
+            </div>
 
+            {/* Dark Mode Toggle working globally */}
             <button className="theme-button" onClick={() => setDarkMode(!darkMode)} aria-label="Toggle theme">
               {darkMode ? <Sun size={17} /> : <Moon size={17} />}
             </button>
@@ -455,7 +494,11 @@ function App() {
         </header>
 
         {activePage === 'Home' ? (
-          <Home onOpenWorkspace={handleOpenWorkspace} onSignIn={() => setShowAuthModal(true)} />
+          <Home
+            onOpenWorkspace={handleOpenWorkspace}
+            theme={darkMode ? 'dark' : 'light'}
+            setTheme={(t) => setDarkMode(t === 'dark')}
+          />
         ) : activePage === 'Overview' ? (
           <Dashboard
             user={currentUser}
@@ -468,14 +511,10 @@ function App() {
             setDate={setDate}
             tasks={tasks}
             pendingTasksCount={pendingTasksCount}
-            onToggleTask={handleToggleTask}
-            onDeleteTask={handleDeleteTask}
-            onOpenAddTask={() => setShowAddTaskModal(true)}
-            onBackToHome={() => setActivePage('Home')}
             setToast={setToast}
           />
         ) : activePage === 'Profile' ? (
-          <Profile user={currentUser} onOpenEdit={() => setShowOnboardingModal(true)} onBackToHome={() => setActivePage('Home')} setToast={setToast} />
+          <Profile user={currentUser} onOpenEdit={() => setShowOnboardingModal(true)} setToast={setToast} />
         ) : activePage === 'My tasks' ? (
           <TaskPage
             tasks={tasks}
@@ -483,11 +522,20 @@ function App() {
             onToggleTask={handleToggleTask}
             onDeleteTask={handleDeleteTask}
             onOpenAddTask={() => setShowAddTaskModal(true)}
-            onBackToHome={() => setActivePage('Home')}
             setToast={setToast}
           />
+        ) : activePage === 'Attendance' ? (
+          <AttendancePage checkedIn={checkedIn} handleCheckIn={handleCheckIn} currentTime={currentTime} setToast={setToast} />
+        ) : activePage === 'Leave' ? (
+          <LeavePage user={currentUser} setToast={setToast} />
+        ) : activePage === 'Payroll' ? (
+          <PayrollPage user={currentUser} setToast={setToast} />
+        ) : activePage === 'People' ? (
+          <PeoplePage user={currentUser} setToast={setToast} />
+        ) : activePage === 'Notifications' ? (
+          <NotificationsPage setToast={setToast} />
         ) : (
-          <PlaceholderPage page={activePage} role={currentUser?.role || 'EMPLOYEE'} onBackToHome={() => setActivePage('Home')} setToast={setToast} />
+          <div className="page-content"><h2>Page not found</h2></div>
         )}
       </main>
 
@@ -499,7 +547,7 @@ function App() {
         />
       )}
 
-      {/* Onboarding / Edit Profile Modal */}
+      {/* Profile Modal */}
       {showOnboardingModal && currentUser && (
         <OnboardingModal
           user={currentUser}
@@ -527,11 +575,19 @@ function App() {
   );
 }
 
-/* === Landing Component === */
-function Home({ onOpenWorkspace, onSignIn }: { onOpenWorkspace: () => void; onSignIn: () => void }) {
+/* === Home Landing Page === */
+function Home({
+  onOpenWorkspace,
+  theme,
+  setTheme,
+}: {
+  onOpenWorkspace: () => void;
+  theme: 'light' | 'dark';
+  setTheme: (t: 'light' | 'dark') => void;
+}) {
   return (
     <div className="landing-page" role="main">
-      <LandingHeader onOpenDashboard={onOpenWorkspace} theme="light" setTheme={() => {}} />
+      <LandingHeader onOpenDashboard={onOpenWorkspace} theme={theme} setTheme={(t) => setTheme(t === 'dark' ? 'dark' : 'light')} />
       <LandingHero onOpenDashboard={onOpenWorkspace} />
       <LandingFeatures />
       <LandingStories />
@@ -541,7 +597,7 @@ function Home({ onOpenWorkspace, onSignIn }: { onOpenWorkspace: () => void; onSi
   );
 }
 
-/* === Dashboard Component === */
+/* === Dashboard Overview Component (Without redundant My Tasks section) === */
 function Dashboard({
   user,
   greeting,
@@ -553,10 +609,6 @@ function Dashboard({
   setDate,
   tasks,
   pendingTasksCount,
-  onToggleTask,
-  onDeleteTask,
-  onOpenAddTask,
-  onBackToHome,
   setToast,
 }: {
   user: UserProfile | null;
@@ -569,10 +621,6 @@ function Dashboard({
   setDate: (date: Date) => void;
   tasks: TaskItem[];
   pendingTasksCount: number;
-  onToggleTask: (id: string) => void;
-  onDeleteTask: (id: string) => void;
-  onOpenAddTask: () => void;
-  onBackToHome: () => void;
   setToast: (message: string) => void;
 }) {
   const moveDate = (days: number) => {
@@ -585,12 +633,6 @@ function Dashboard({
 
   return (
     <div className="page-content">
-      <div style={{ marginBottom: '16px' }}>
-        <button className="back-button" onClick={onBackToHome}>
-          <ArrowLeft size={14} /> Back to Home Page
-        </button>
-      </div>
-
       <section className="welcome-row">
         <div>
           <div className="eyebrow">
@@ -642,7 +684,7 @@ function Dashboard({
 
         <div className="calendar-card card-surface">
           <div className="card-topline">
-            <div><span className="soft-label">YOUR SCHEDULE</span><h2>October 2024</h2></div>
+            <div><span className="soft-label">YOUR SCHEDULE</span><h2>August 2026</h2></div>
             <div className="calendar-arrows">
               <button onClick={() => moveDate(-30)}><ChevronLeft size={16} /></button>
               <button onClick={() => moveDate(30)}><ChevronRight size={16} /></button>
@@ -669,7 +711,7 @@ function Dashboard({
       <section className="stats-grid">
         <StatCard icon={<Clock3 size={18} />} label="Attendance rate" value="96.4%" detail="+2.4% this month" tone="mint" graph="line" />
         <StatCard icon={<CalendarDays size={18} />} label="Pending Tasks" value={`${pendingTasksCount}`} detail={`${tasks.length - pendingTasksCount} completed`} tone="lilac" graph="ring" />
-        <StatCard icon={<WalletCards size={18} />} label="Next payday" value="Nov 01" detail="7 days from now" tone="peach" graph="calendar" />
+        <StatCard icon={<WalletCards size={18} />} label="Next payday" value="Sep 01" detail="10 days from now" tone="peach" graph="calendar" />
         <StatCard icon={<UsersRound size={18} />} label="Team availability" value="18 / 24" detail="people online today" tone="blue" graph="people" />
       </section>
 
@@ -718,10 +760,38 @@ function Dashboard({
               </div>
             ))}
           </div>
-          <button className="full-link" onClick={() => setToast('Opening your team')}>See everyone <ChevronRight size={15} /></button>
         </div>
       </section>
+    </div>
+  );
+}
 
+/* === Task Page (Dedicated My Tasks view) === */
+function TaskPage({
+  tasks,
+  pendingTasksCount,
+  onToggleTask,
+  onDeleteTask,
+  onOpenAddTask,
+  setToast,
+}: {
+  tasks: TaskItem[];
+  pendingTasksCount: number;
+  onToggleTask: (id: string) => void;
+  onDeleteTask: (id: string) => void;
+  onOpenAddTask: () => void;
+  setToast: (message: string) => void;
+}) {
+  return (
+    <div className="page-content task-page">
+      <section className="profile-heading">
+        <div>
+          <div className="eyebrow"><ListChecks size={15} /> Workspace Tasks</div>
+          <h1>My Tasks & Workflow</h1>
+          <p>Manage your daily deliverables, add tasks, and remove completed work.</p>
+        </div>
+        <button className="primary-button" onClick={onOpenAddTask}><Plus size={17} /> Add new task</button>
+      </section>
       <TaskBoard
         tasks={tasks}
         pendingTasksCount={pendingTasksCount}
@@ -733,7 +803,6 @@ function Dashboard({
   );
 }
 
-/* === Task Board Component === */
 function TaskBoard({
   tasks,
   pendingTasksCount,
@@ -752,7 +821,7 @@ function TaskBoard({
       <div className="task-board-heading">
         <div>
           <span className="soft-label">YOUR DAY AT A GLANCE</span>
-          <h2>My Tasks</h2>
+          <h2>Tasks List</h2>
           <p>Keep your priorities moving forward cleanly.</p>
         </div>
         <div className="task-heading-actions">
@@ -798,61 +867,768 @@ function TaskBoard({
   );
 }
 
-function TaskPage({
-  tasks,
-  pendingTasksCount,
-  onToggleTask,
-  onDeleteTask,
-  onOpenAddTask,
-  onBackToHome,
+/* === ATTENDANCE MODULE === */
+function AttendancePage({
+  checkedIn,
+  handleCheckIn,
+  currentTime,
   setToast,
 }: {
-  tasks: TaskItem[];
-  pendingTasksCount: number;
-  onToggleTask: (id: string) => void;
-  onDeleteTask: (id: string) => void;
-  onOpenAddTask: () => void;
-  onBackToHome: () => void;
-  setToast: (message: string) => void;
+  checkedIn: boolean;
+  handleCheckIn: () => void;
+  currentTime: Date;
+  setToast: (msg: string) => void;
 }) {
-  return (
-    <div className="page-content task-page">
-      <div style={{ marginBottom: '16px' }}>
-        <button className="back-button" onClick={onBackToHome}>
-          <ArrowLeft size={14} /> Back to Home Page
-        </button>
-      </div>
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/attendance`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setLogs(data.data);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [checkedIn]);
+
+  return (
+    <div className="page-content">
       <section className="profile-heading">
         <div>
-          <div className="eyebrow"><ListChecks size={15} /> Workspace Tasks</div>
-          <h1>My Tasks & Workflow</h1>
-          <p>Manage your daily deliverables, add tasks, and remove completed work.</p>
+          <div className="eyebrow"><Clock3 size={15} /> Time & Attendance</div>
+          <h1>Attendance Management</h1>
+          <p>Track daily check-ins, working hours, and view historical attendance logs.</p>
         </div>
-        <button className="primary-button" onClick={onOpenAddTask}><Plus size={17} /> Add new task</button>
+        <button className={`primary-button ${checkedIn ? 'checkout-button' : ''}`} onClick={() => { handleCheckIn(); setToast(checkedIn ? 'Checked out!' : 'Checked in!'); }}>
+          {checkedIn ? 'Check Out Now' : 'Check In Now'}
+        </button>
       </section>
-      <TaskBoard
-        tasks={tasks}
-        pendingTasksCount={pendingTasksCount}
-        onToggleTask={onToggleTask}
-        onDeleteTask={onDeleteTask}
-        onOpenAddTask={onOpenAddTask}
-      />
+
+      <div className="cards-summary-grid">
+        <div className="summary-card">
+          <span>Current Status</span>
+          <strong style={{ color: checkedIn ? '#059669' : '#dc2626' }}>{checkedIn ? 'Present (On Clock)' : 'Checked Out'}</strong>
+          <small>Time: {formatTime(currentTime)}</small>
+        </div>
+        <div className="summary-card">
+          <span>Days Present (This Month)</span>
+          <strong>18 Days</strong>
+          <small>94.7% Attendance rate</small>
+        </div>
+        <div className="summary-card">
+          <span>Avg. Daily Hours</span>
+          <strong>8.2 Hours</strong>
+          <small>Standard: 8.0 Hours</small>
+        </div>
+        <div className="summary-card">
+          <span>Late Arrivals</span>
+          <strong>1 Day</strong>
+          <small>Within acceptable buffer</small>
+        </div>
+      </div>
+
+      <div className="data-table-wrapper">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Check In</th>
+              <th>Check Out</th>
+              <th>Total Hours</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '24px' }}>Loading attendance records...</td></tr>
+            ) : logs.length === 0 ? (
+              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '24px' }}>No records found.</td></tr>
+            ) : (
+              logs.map(log => (
+                <tr key={log.id}>
+                  <td><strong>{log.date}</strong></td>
+                  <td>{log.checkIn}</td>
+                  <td>{log.checkOut}</td>
+                  <td>{log.totalHours}</td>
+                  <td>
+                    <span className={`badge badge-${(log.status || 'PRESENT').toLowerCase()}`}>
+                      {log.status}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
-function StatCard({ icon, label, value, detail, tone, graph }: { icon: React.ReactNode; label: string; value: string; detail: string; tone: string; graph: string }) {
+/* === LEAVE MODULE === */
+function LeavePage({ user, setToast }: { user: UserProfile | null; setToast: (msg: string) => void }) {
+  const [leaves, setLeaves] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showApplyModal, setShowApplyModal] = useState(false);
+
+  // Leave Form
+  const [leaveType, setLeaveType] = useState('Annual Leave');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [reason, setReason] = useState('');
+
+  const fetchLeaves = () => {
+    fetch(`${API_BASE_URL}/leaves`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setLeaves(data.data);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchLeaves();
+  }, []);
+
+  const handleApplyLeave = (e: React.FormEvent) => {
+    e.preventDefault();
+    fetch(`${API_BASE_URL}/leaves`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: leaveType,
+        startDate,
+        endDate,
+        reason,
+        employeeName: user ? `${user.firstName} ${user.lastName}` : 'Current Employee',
+      }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setToast('Leave request submitted successfully!');
+          setShowApplyModal(false);
+          setReason('');
+          fetchLeaves();
+        }
+      });
+  };
+
+  const handleUpdateStatus = (id: string, status: string) => {
+    fetch(`${API_BASE_URL}/leaves/${id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setToast(`Leave request ${status.toLowerCase()}`);
+          fetchLeaves();
+        }
+      });
+  };
+
   return (
-    <div className={`stat-card stat-${tone}`}>
-      <div className="stat-header"><span className="stat-icon">{icon}</span><MoreHorizontal size={17} className="stat-more" /></div>
-      <span className="stat-label">{label}</span>
-      <strong className="stat-value">{value}</strong>
-      <span className="stat-detail">{detail}</span>
-      {graph === 'line' && <div className="mini-line"><span /><span /><span /><span /><span /></div>}
-      {graph === 'ring' && <div className="mini-ring"><span>{value}</span></div>}
-      {graph === 'calendar' && <div className="mini-calendar-icon"><span>NOV</span><strong>01</strong></div>}
-      {graph === 'people' && <div className="mini-bars"><span /><span /><span /><span /><span /><span /></div>}
+    <div className="page-content">
+      <section className="profile-heading">
+        <div>
+          <div className="eyebrow"><CalendarDays size={15} /> Time Off Workspace</div>
+          <h1>Leave & Vacation Balances</h1>
+          <p>Request leaves, monitor available balance allowances, and view request statuses.</p>
+        </div>
+        <button className="primary-button" onClick={() => setShowApplyModal(true)}>
+          <Plus size={17} /> Apply for Leave
+        </button>
+      </section>
+
+      <div className="cards-summary-grid">
+        <div className="summary-card">
+          <span>Annual Leave</span>
+          <strong style={{ color: '#2563eb' }}>14 / 20 Days</strong>
+          <small>6 days taken this year</small>
+        </div>
+        <div className="summary-card">
+          <span>Sick Leave</span>
+          <strong style={{ color: '#059669' }}>8 / 10 Days</strong>
+          <small>2 days used</small>
+        </div>
+        <div className="summary-card">
+          <span>Casual Leave</span>
+          <strong style={{ color: '#d97706' }}>5 / 7 Days</strong>
+          <small>2 days remaining</small>
+        </div>
+      </div>
+
+      <div className="data-table-wrapper">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Applicant</th>
+              <th>Leave Type</th>
+              <th>Duration</th>
+              <th>Days</th>
+              <th>Reason</th>
+              <th>Status</th>
+              {user?.role === 'ADMIN' && <th>Action</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={7} style={{ textAlign: 'center', padding: '24px' }}>Loading leave requests...</td></tr>
+            ) : leaves.length === 0 ? (
+              <tr><td colSpan={7} style={{ textAlign: 'center', padding: '24px' }}>No leave requests found.</td></tr>
+            ) : (
+              leaves.map(req => (
+                <tr key={req.id}>
+                  <td><strong>{req.employeeName || req.employee?.firstName + ' ' + req.employee?.lastName || 'Employee'}</strong></td>
+                  <td>{req.type || req.leaveType}</td>
+                  <td>{req.startDate} to {req.endDate}</td>
+                  <td>{req.days || 1} day(s)</td>
+                  <td>{req.reason || 'N/A'}</td>
+                  <td>
+                    <span className={`badge badge-${(req.status || 'PENDING').toLowerCase()}`}>
+                      {req.status}
+                    </span>
+                  </td>
+                  {user?.role === 'ADMIN' && (
+                    <td>
+                      {req.status === 'PENDING' ? (
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button
+                            style={{ padding: '4px 8px', borderRadius: '6px', border: 0, background: '#10b981', color: '#fff', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+                            onClick={() => handleUpdateStatus(req.id, 'APPROVED')}
+                          >
+                            Approve
+                          </button>
+                          <button
+                            style={{ padding: '4px 8px', borderRadius: '6px', border: 0, background: '#ef4444', color: '#fff', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+                            onClick={() => handleUpdateStatus(req.id, 'REJECTED')}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '12px', color: 'var(--muted)' }}>—</span>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {showApplyModal && (
+        <div className="modal-overlay">
+          <div className="modal-box">
+            <div className="modal-header">
+              <h2>Request Time Off / Leave</h2>
+              <button className="modal-close" onClick={() => setShowApplyModal(false)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleApplyLeave}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Leave Type *</label>
+                  <select value={leaveType} onChange={e => setLeaveType(e.target.value)}>
+                    <option value="Annual Leave">Annual Leave</option>
+                    <option value="Sick Leave">Sick Leave</option>
+                    <option value="Casual Leave">Casual Leave</option>
+                    <option value="Maternity / Paternity Leave">Maternity / Paternity Leave</option>
+                  </select>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Start Date *</label>
+                    <input type="date" required value={startDate} onChange={e => setStartDate(e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label>End Date *</label>
+                    <input type="date" required value={endDate} onChange={e => setEndDate(e.target.value)} />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Reason *</label>
+                  <textarea
+                    required
+                    rows={3}
+                    placeholder="Briefly state your reason for time off"
+                    value={reason}
+                    onChange={e => setReason(e.target.value)}
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--line)', background: 'var(--canvas)', color: 'var(--ink)' }}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="outline-button" onClick={() => setShowApplyModal(false)}>Cancel</button>
+                <button type="submit" className="primary-button">Submit Request</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* === PAYROLL MODULE === */
+function PayrollPage({ user, setToast }: { user: UserProfile | null; setToast: (msg: string) => void }) {
+  const [payrolls, setPayrolls] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showGenModal, setShowGenModal] = useState(false);
+
+  const [month, setMonth] = useState('September');
+  const [basicSalary, setBasicSalary] = useState('8500');
+  const [allowances, setAllowances] = useState('1200');
+  const [deductions, setDeductions] = useState('450');
+
+  const fetchPayroll = () => {
+    fetch(`${API_BASE_URL}/payroll`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setPayrolls(data.data);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchPayroll();
+  }, []);
+
+  const handleGeneratePayroll = (e: React.FormEvent) => {
+    e.preventDefault();
+    fetch(`${API_BASE_URL}/payroll`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        month,
+        year: 2026,
+        basicSalary,
+        allowances,
+        deductions,
+        employeeName: user ? `${user.firstName} ${user.lastName}` : 'Workspace Employee',
+      }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setToast('Payroll processed & payslip generated!');
+          setShowGenModal(false);
+          fetchPayroll();
+        }
+      });
+  };
+
+  return (
+    <div className="page-content">
+      <section className="profile-heading">
+        <div>
+          <div className="eyebrow"><WalletCards size={15} /> Compensation & Slips</div>
+          <h1>Payroll Management</h1>
+          <p>Review monthly salaries, allowances, deductions, and download payslip summaries.</p>
+        </div>
+        {user?.role === 'ADMIN' && (
+          <button className="primary-button" onClick={() => setShowGenModal(true)}>
+            <Plus size={17} /> Process New Payroll
+          </button>
+        )}
+      </section>
+
+      <div className="cards-summary-grid">
+        <div className="summary-card">
+          <span>Net Disbursed (August 2026)</span>
+          <strong style={{ color: '#059669' }}>$36,750.00</strong>
+          <small>All employees paid</small>
+        </div>
+        <div className="summary-card">
+          <span>Average Monthly Salary</span>
+          <strong>$8,750.00</strong>
+          <small>Base compensation</small>
+        </div>
+        <div className="summary-card">
+          <span>Total Deductions</span>
+          <strong>$1,750.00</strong>
+          <small>Taxes & health insurance</small>
+        </div>
+      </div>
+
+      <div className="data-table-wrapper">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Period</th>
+              <th>Basic Salary</th>
+              <th>Allowances</th>
+              <th>Deductions</th>
+              <th>Net Salary</th>
+              <th>Status</th>
+              <th>Payslip</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={8} style={{ textAlign: 'center', padding: '24px' }}>Loading payroll records...</td></tr>
+            ) : payrolls.length === 0 ? (
+              <tr><td colSpan={8} style={{ textAlign: 'center', padding: '24px' }}>No payroll records found.</td></tr>
+            ) : (
+              payrolls.map(item => (
+                <tr key={item.id}>
+                  <td><strong>{item.employeeName || item.employee?.firstName + ' ' + item.employee?.lastName || 'Employee'}</strong></td>
+                  <td>{item.month} {item.year}</td>
+                  <td>${item.basicSalary}</td>
+                  <td>+${item.allowances}</td>
+                  <td>-${item.deductions}</td>
+                  <td><strong style={{ color: '#059669' }}>${item.netPay}</strong></td>
+                  <td>
+                    <span className={`badge badge-${(item.status || 'PAID').toLowerCase()}`}>
+                      {item.status}
+                    </span>
+                  </td>
+                  <td>
+                    <button
+                      style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--surface-soft)', cursor: 'pointer', fontSize: '12px' }}
+                      onClick={() => setToast(`Opened payslip PDF for ${item.month} ${item.year}`)}
+                    >
+                      View Slip
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {showGenModal && (
+        <div className="modal-overlay">
+          <div className="modal-box">
+            <div className="modal-header">
+              <h2>Process Monthly Payroll</h2>
+              <button className="modal-close" onClick={() => setShowGenModal(false)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleGeneratePayroll}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Pay Month</label>
+                  <select value={month} onChange={e => setMonth(e.target.value)}>
+                    <option value="September">September 2026</option>
+                    <option value="October">October 2026</option>
+                    <option value="November">November 2026</option>
+                  </select>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Basic Salary ($)</label>
+                    <input type="number" value={basicSalary} onChange={e => setBasicSalary(e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label>Allowances ($)</label>
+                    <input type="number" value={allowances} onChange={e => setAllowances(e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label>Deductions ($)</label>
+                    <input type="number" value={deductions} onChange={e => setDeductions(e.target.value)} />
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="outline-button" onClick={() => setShowGenModal(false)}>Cancel</button>
+                <button type="submit" className="primary-button">Process Payroll</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* === PEOPLE (EMPLOYEE DIRECTORY) MODULE === */
+function PeoplePage({ user, setToast }: { user: UserProfile | null; setToast: (msg: string) => void }) {
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDept, setSelectedDept] = useState('ALL');
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  // New Employee Form
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [roleTitle, setRoleTitle] = useState('');
+  const [department, setDepartment] = useState('Engineering');
+  const [gender, setGender] = useState('Female');
+
+  const fetchEmployees = () => {
+    fetch(`${API_BASE_URL}/employees`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setEmployees(data.data);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  const handleAddEmployee = (e: React.FormEvent) => {
+    e.preventDefault();
+    fetch(`${API_BASE_URL}/employees`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ firstName, lastName, email, roleTitle, department, gender, role: 'EMPLOYEE' }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setToast(`Added employee ${firstName} ${lastName}!`);
+          setShowAddModal(false);
+          setFirstName('');
+          setLastName('');
+          setEmail('');
+          setRoleTitle('');
+          fetchEmployees();
+        }
+      });
+  };
+
+  const filteredEmployees = employees.filter(emp => {
+    const fullName = `${emp.firstName || ''} ${emp.lastName || ''} ${emp.name || ''}`.toLowerCase();
+    const matchesSearch = fullName.includes(searchQuery.toLowerCase()) || (emp.email && emp.email.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesDept = selectedDept === 'ALL' || emp.department === selectedDept;
+    return matchesSearch && matchesDept;
+  });
+
+  return (
+    <div className="page-content">
+      <section className="profile-heading">
+        <div>
+          <div className="eyebrow"><UsersRound size={15} /> People & Organization</div>
+          <h1>Employee Directory</h1>
+          <p>View all team members across departments, roles, and genders.</p>
+        </div>
+        {user?.role === 'ADMIN' && (
+          <button className="primary-button" onClick={() => setShowAddModal(true)}>
+            <UserPlus size={17} /> Add New Employee
+          </button>
+        )}
+      </section>
+
+      <div className="module-header-row">
+        <label className="search-box" style={{ maxWidth: '340px' }}>
+          <Search size={17} />
+          <input placeholder="Search by name or email..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+        </label>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <Filter size={15} style={{ color: 'var(--muted)' }} />
+          <select
+            value={selectedDept}
+            onChange={e => setSelectedDept(e.target.value)}
+            style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--ink)' }}
+          >
+            <option value="ALL">All Departments</option>
+            <option value="Engineering">Engineering</option>
+            <option value="Product & Design">Product & Design</option>
+            <option value="Operations">Operations</option>
+            <option value="Marketing & Sales">Marketing & Sales</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="data-table-wrapper">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Employee Name</th>
+              <th>Role / Position</th>
+              <th>Department</th>
+              <th>Gender</th>
+              <th>Email</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '24px' }}>Loading employee directory...</td></tr>
+            ) : filteredEmployees.length === 0 ? (
+              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '24px' }}>No employees matched your filter.</td></tr>
+            ) : (
+              filteredEmployees.map(emp => (
+                <tr key={emp.id}>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Avatar initials={emp.initials || getInitials(emp.firstName, emp.lastName)} tone={emp.tone || 'coral'} small />
+                      <strong>{emp.firstName ? `${emp.firstName} ${emp.lastName}` : emp.name}</strong>
+                    </div>
+                  </td>
+                  <td>{emp.roleTitle || emp.role}</td>
+                  <td>{emp.department || 'Engineering'}</td>
+                  <td>{emp.gender || 'Prefer not to say'}</td>
+                  <td>{emp.email || 'employee@dayflow.co'}</td>
+                  <td>
+                    <span className={`badge badge-${(emp.status || 'ACTIVE').toLowerCase()}`}>
+                      {emp.status || 'ACTIVE'}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {showAddModal && (
+        <div className="modal-overlay">
+          <div className="modal-box">
+            <div className="modal-header">
+              <h2>Add New Employee Profile</h2>
+              <button className="modal-close" onClick={() => setShowAddModal(false)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleAddEmployee}>
+              <div className="modal-body">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>First Name *</label>
+                    <input required value={firstName} onChange={e => setFirstName(e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label>Last Name *</label>
+                    <input required value={lastName} onChange={e => setLastName(e.target.value)} />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Email Address *</label>
+                  <input type="email" required value={email} onChange={e => setEmail(e.target.value)} />
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Role Title *</label>
+                    <input required placeholder="e.g. Senior Frontend Developer" value={roleTitle} onChange={e => setRoleTitle(e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label>Department</label>
+                    <select value={department} onChange={e => setDepartment(e.target.value)}>
+                      <option value="Engineering">Engineering</option>
+                      <option value="Product & Design">Product & Design</option>
+                      <option value="Operations">Operations</option>
+                      <option value="Marketing & Sales">Marketing & Sales</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Gender *</label>
+                  <div className="gender-options">
+                    {['Male', 'Female', 'Other', 'Prefer not to say'].map(g => (
+                      <button
+                        key={g}
+                        type="button"
+                        className={`gender-option ${gender === g ? 'selected' : ''}`}
+                        onClick={() => setGender(g)}
+                      >
+                        {g}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="outline-button" onClick={() => setShowAddModal(false)}>Cancel</button>
+                <button type="submit" className="primary-button">Add Employee</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* === NOTIFICATIONS MODULE (DEDICATED ROUTE) === */
+function NotificationsPage({ setToast }: { setToast: (msg: string) => void }) {
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('ALL');
+
+  const fetchNotifs = () => {
+    fetch(`${API_BASE_URL}/notifications`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setNotifications(data.data);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchNotifs();
+  }, []);
+
+  const handleMarkAllRead = () => {
+    fetch(`${API_BASE_URL}/notifications/mark-read`, { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setNotifications(data.data);
+          setToast('All notifications marked as read!');
+        }
+      });
+  };
+
+  const filteredNotifs = notifications.filter(n => filter === 'ALL' || n.category === filter);
+
+  return (
+    <div className="page-content">
+      <section className="profile-heading">
+        <div>
+          <div className="eyebrow"><Bell size={15} /> Notifications Center</div>
+          <h1>System & Team Notifications</h1>
+          <p>Stay updated on leave approvals, payroll releases, and workspace events.</p>
+        </div>
+        <button className="outline-button" onClick={handleMarkAllRead}>
+          Mark All as Read
+        </button>
+      </section>
+
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+        {['ALL', 'Leave', 'Payroll', 'Attendance', 'Schedule', 'System'].map(cat => (
+          <button
+            key={cat}
+            className={`outline-button ${filter === cat ? 'primary-button' : ''}`}
+            onClick={() => setFilter(cat)}
+            style={{ padding: '6px 14px', fontSize: '13px' }}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {loading ? (
+          <div className="card-surface" style={{ padding: '24px', textAlign: 'center' }}>Loading notifications...</div>
+        ) : filteredNotifs.length === 0 ? (
+          <div className="card-surface" style={{ padding: '24px', textAlign: 'center' }}>No notifications found in this category.</div>
+        ) : (
+          filteredNotifs.map(n => (
+            <div key={n.id} className={`card-surface notification-card-item ${n.unread ? 'unread' : ''}`}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div className="activity-icon mint"><Bell size={18} /></div>
+                <div>
+                  <strong style={{ fontSize: '14px', display: 'block', color: 'var(--ink)' }}>{n.title}</strong>
+                  <span style={{ fontSize: '12px', color: 'var(--muted)' }}>{n.time} | Category: {n.category}</span>
+                </div>
+              </div>
+              {n.unread && <span className="badge badge-pending">NEW</span>}
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -861,12 +1637,10 @@ function StatCard({ icon, label, value, detail, tone, graph }: { icon: React.Rea
 function Profile({
   user,
   onOpenEdit,
-  onBackToHome,
   setToast,
 }: {
   user: UserProfile | null;
   onOpenEdit: () => void;
-  onBackToHome: () => void;
   setToast: (message: string) => void;
 }) {
   if (!user) {
@@ -879,16 +1653,10 @@ function Profile({
 
   return (
     <div className="page-content profile-page">
-      <div style={{ marginBottom: '16px' }}>
-        <button className="back-button" onClick={onBackToHome}>
-          <ArrowLeft size={14} /> Back to Home Page
-        </button>
-      </div>
-
       <section className="profile-heading">
         <div>
           <div className="eyebrow"><UserRound size={15} /> Personal workspace</div>
-          <h1>My profile</h1>
+          <h1>My Profile</h1>
           <p>Keep your personal and work information up to date.</p>
         </div>
         <button className="primary-button" onClick={onOpenEdit}>
@@ -969,40 +1737,22 @@ function Detail({ label, value }: { label: string; value: string }) {
   );
 }
 
-function PlaceholderPage({ page, role, onBackToHome, setToast }: { page: Page; role: UserRole; onBackToHome: () => void; setToast: (message: string) => void }) {
-  const descriptions: Record<string, string> = {
-    Attendance: 'Track your hours and keep an eye on team pulse.',
-    Leave: 'Plan time away without losing sight of balance.',
-    Payroll: 'Admin & Employee compensation overview.',
-    People: 'Directory of all employees and company departments.',
-  };
+function StatCard({ icon, label, value, detail, tone, graph }: { icon: React.ReactNode; label: string; value: string; detail: string; tone: string; graph: string }) {
   return (
-    <div className="page-content placeholder-page">
-      <div style={{ marginBottom: '16px' }}>
-        <button className="back-button" onClick={onBackToHome}>
-          <ArrowLeft size={14} /> Back to Home Page
-        </button>
-      </div>
-
-      <section className="profile-heading">
-        <div>
-          <div className="eyebrow"><span className="status-pulse" /> {role} workspace</div>
-          <h1>{page}</h1>
-          <p>{descriptions[page]}</p>
-        </div>
-        <button className="primary-button" onClick={() => setToast(`New ${page.toLowerCase()} action started`)}><Plus size={17} /> Add new</button>
-      </section>
-      <div className="placeholder-hero card-surface">
-        <div className="placeholder-icon"><ListChecks size={28} /></div>
-        <h2>Your {page.toLowerCase()} workspace is ready.</h2>
-        <p>This view is configured for {role} access level.</p>
-        <button className="outline-button" onClick={onBackToHome}>Return to Home Page <ChevronRight size={16} /></button>
-      </div>
+    <div className={`stat-card stat-${tone}`}>
+      <div className="stat-header"><span className="stat-icon">{icon}</span><MoreHorizontal size={17} className="stat-more" /></div>
+      <span className="stat-label">{label}</span>
+      <strong className="stat-value">{value}</strong>
+      <span className="stat-detail">{detail}</span>
+      {graph === 'line' && <div className="mini-line"><span /><span /><span /><span /><span /></div>}
+      {graph === 'ring' && <div className="mini-ring"><span>{value}</span></div>}
+      {graph === 'calendar' && <div className="mini-calendar-icon"><span>SEP</span><strong>01</strong></div>}
+      {graph === 'people' && <div className="mini-bars"><span /><span /><span /><span /><span /><span /></div>}
     </div>
   );
 }
 
-/* === Auth Modal with Login & Register (HR / Admin vs Employee) === */
+/* === Auth Modal with Login & Register === */
 function AuthModal({
   onClose,
   onLoginSuccess,
