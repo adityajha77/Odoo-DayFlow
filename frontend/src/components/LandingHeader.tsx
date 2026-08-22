@@ -1,5 +1,5 @@
 import { Grid2X2, Moon, Sun, Monitor, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface LandingHeaderProps {
   onOpenDashboard: () => void;
@@ -7,11 +7,50 @@ interface LandingHeaderProps {
   setTheme: (t: 'light' | 'dark' | 'system') => void;
 }
 
+const SECTION_IDS = ['features', 'benefits', 'stories', 'cta', 'contact'];
+
 export function LandingHeader({ onOpenDashboard, theme, setTheme }: LandingHeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [activeSection, setActiveSection] = useState('');
+  const [themeAnimating, setThemeAnimating] = useState(false);
+
+  // Scroll detection for header background
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Active section tracking via IntersectionObserver
+  useEffect(() => {
+    const observers: IntersectionObserver[] = [];
+
+    SECTION_IDS.forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            setActiveSection(id);
+          }
+        },
+        { threshold: 0.3, rootMargin: '-80px 0px -40% 0px' }
+      );
+
+      observer.observe(el);
+      observers.push(observer);
+    });
+
+    return () => observers.forEach((obs) => obs.disconnect());
+  }, []);
 
   // Cycle theme: light -> dark -> system -> light
   const handleCycleTheme = () => {
+    setThemeAnimating(true);
+    setTimeout(() => setThemeAnimating(false), 300);
+
     if (theme === 'light') {
       setTheme('dark');
     } else if (theme === 'dark') {
@@ -44,7 +83,7 @@ export function LandingHeader({ onOpenDashboard, theme, setTheme }: LandingHeade
   };
 
   return (
-    <header className="landing-header" role="banner">
+    <header className={`landing-header ${scrolled ? 'scrolled' : ''}`} role="banner">
       <nav className="landing-header-inner" aria-label="Main navigation">
         {/* Logo */}
         <a href="#" className="landing-brand" aria-label="Dayflow home">
@@ -56,18 +95,29 @@ export function LandingHeader({ onOpenDashboard, theme, setTheme }: LandingHeade
           </span>
         </a>
 
-        {/* Desktop nav links */}
+        {/* Desktop nav links with active highlighting */}
         <ul className="landing-nav-links" role="list">
-          <li><a href="#features">Features</a></li>
-          <li><a href="#benefits">Benefits</a></li>
-          <li><a href="#stories">Stories</a></li>
-          <li><a href="#contact">Contact</a></li>
+          {[
+            { id: 'features', label: 'Features' },
+            { id: 'benefits', label: 'Benefits' },
+            { id: 'stories', label: 'Stories' },
+            { id: 'contact', label: 'Contact' },
+          ].map(({ id, label }) => (
+            <li key={id}>
+              <a
+                href={`#${id}`}
+                className={activeSection === id ? 'nav-link-active' : ''}
+              >
+                {label}
+              </a>
+            </li>
+          ))}
         </ul>
 
         {/* Actions */}
         <div className="landing-nav-actions">
           <button
-            className="theme-toggle-btn"
+            className={`theme-toggle-btn ${themeAnimating ? 'theme-bounce' : ''}`}
             onClick={handleCycleTheme}
             aria-label={getThemeLabel()}
             title={getThemeLabel()}

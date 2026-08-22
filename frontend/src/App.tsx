@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bell,
   CalendarDays,
@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import './App.css';
 import { LandingHeader } from './components/LandingHeader';
+import { useScrollReveal, useCountUp } from './hooks/useScrollReveal';
 
 type Page = 'Home' | 'Overview' | 'My tasks' | 'Attendance' | 'Leave' | 'Payroll' | 'People' | 'Profile';
 
@@ -189,15 +190,57 @@ function App() {
 }
 
 function Home({ onOpenDashboard, theme, setTheme }: { onOpenDashboard: () => void, theme: 'light' | 'dark' | 'system', setTheme: (t: 'light' | 'dark' | 'system') => void }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  useScrollReveal(containerRef);
+
+  // Parallax tilt on mouse move
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5; // -0.5 to 0.5
+    const y = (e.clientY - rect.top) / rect.height - 0.5; // -0.5 to 0.5
+    setTilt({ x: x * 10, y: -y * 10 }); // rotate Y by x*10, rotate X by -y*10
+  };
+  const handleMouseLeave = () => {
+    setTilt({ x: 0, y: 0 });
+  };
+
+  // Tab state for interactive feature section
+  type FeatureTab = 'attendance' | 'leave' | 'payroll' | 'employees';
+  const [activeTab, setActiveTab] = useState<FeatureTab>('attendance');
+
+  // IntersectionObserver for count-up numbers in benefits section
+  const [proofVisible, setProofVisible] = useState(false);
+  const proofRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const el = proofRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setProofVisible(true);
+        observer.unobserve(el);
+      }
+    }, { threshold: 0.1 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Count up stats
+  const teamsOrganized = useCountUp(2400, proofVisible);
+  const adminTimeSaved = useCountUp(34, proofVisible);
+  const satisfactionRaw = useCountUp(49, proofVisible); // we'll show satisfactionRaw / 10 as "4.9"
+
   return (
-    <div className="landing-page" role="main">
+    <div className="landing-page" ref={containerRef} role="main">
       {/* Hero Section */}
       <section className="landing-hero" aria-label="Introduction">
         <LandingHeader onOpenDashboard={onOpenDashboard} theme={theme} setTheme={setTheme} />
         
         <div className="hero-container">
-          <div className="hero-copy">
-            <span className="hero-pill" role="text">One workspace for every workday</span>
+          <div className="hero-copy reveal">
+            <span className="hero-pill animate-fade-in" role="text">One workspace for every workday</span>
             <h1>HR operations with <em>real-time</em> clarity.</h1>
             <p>Dayflow brings people, attendance, payroll, and everyday work into one calm, beautifully organized workspace.</p>
             <div className="hero-actions">
@@ -207,9 +250,20 @@ function Home({ onOpenDashboard, theme, setTheme }: { onOpenDashboard: () => voi
             </div>
           </div>
           
-          <div className="hero-visual" aria-hidden="true">
+          <div 
+            className="hero-visual reveal" 
+            aria-hidden="true"
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+          >
             {/* Interactive/high-fidelity pure CSS Dashboard Mockup */}
-            <div className="dashboard-mockup">
+            <div 
+              className="dashboard-mockup"
+              style={{
+                transform: `perspective(1200px) rotateX(${tilt.y}deg) rotateY(${tilt.x}deg)`,
+                transition: tilt.x === 0 && tilt.y === 0 ? 'transform 0.5s ease' : 'none'
+              }}
+            >
               <div className="mockup-chrome">
                 <div className="chrome-dots">
                   <span className="dot red" />
@@ -274,8 +328,14 @@ function Home({ onOpenDashboard, theme, setTheme }: { onOpenDashboard: () => voi
               </div>
             </div>
             
-            {/* Elegant floating status cards */}
-            <div className="hero-float float-left">
+            {/* Elegant floating status cards with inverse parallax depth */}
+            <div 
+              className="hero-float float-left"
+              style={{
+                transform: `translate3d(${-tilt.x * 1.5}px, ${-tilt.y * 1.5}px, 0)`,
+                transition: tilt.x === 0 && tilt.y === 0 ? 'transform 0.5s ease' : 'none'
+              }}
+            >
               <strong>18</strong>
               <span>people online</span>
               <div className="float-dots">
@@ -285,7 +345,13 @@ function Home({ onOpenDashboard, theme, setTheme }: { onOpenDashboard: () => voi
                 <span className="dot-live" />
               </div>
             </div>
-            <div className="hero-float float-right">
+            <div 
+              className="hero-float float-right"
+              style={{
+                transform: `translate3d(${-tilt.x * 2}px, ${-tilt.y * 2}px, 0)`,
+                transition: tilt.x === 0 && tilt.y === 0 ? 'transform 0.5s ease' : 'none'
+              }}
+            >
               <div className="float-check"><Check size={13} /></div>
               <strong>96.4%</strong>
               <span>attendance rate</span>
@@ -298,80 +364,166 @@ function Home({ onOpenDashboard, theme, setTheme }: { onOpenDashboard: () => voi
 
       {/* Features Section */}
       <section className="landing-section" id="features" aria-labelledby="features-title">
-        <div className="section-intro">
+        <div className="section-intro reveal">
           <span className="hero-pill">Everything in sync</span>
           <h2 id="features-title">A calmer way to run<br /><em>your workday.</em></h2>
           <p>Less switching. More doing. Dayflow gives your team a clear view of what matters now and what comes next.</p>
         </div>
         
-        <div className="feature-bento">
-          {/* Bento Card 1: Scheduling */}
-          <div className="feature-panel feature-yellow">
-            <span className="feature-tag">Smart scheduling</span>
-            <h3>Make every hour<br />count.</h3>
-            <p>Manage meetings, interviews, and focus time from one intelligent calendar.</p>
-            <div className="schedule-list">
-              <span><b>09:00</b> Team standup <i /></span>
-              <span><b>11:30</b> Design review <i /></span>
-              <span><b>14:00</b> Focus time <i /></span>
-            </div>
+        {/* Interactive Premium Feature Tab Showcase */}
+        <div className="features-interactive-showcase reveal">
+          <div className="features-sidebar-tabs">
+            <button 
+              className={`feature-tab-btn ${activeTab === 'attendance' ? 'active' : ''}`}
+              onClick={() => setActiveTab('attendance')}
+            >
+              <div className="tab-icon-wrapper"><Clock3 size={18} /></div>
+              <div className="tab-text">
+                <h3>Attendance insights</h3>
+                <p>Track real-time checkout, remote, and present statuses dynamically.</p>
+              </div>
+            </button>
+
+            <button 
+              className={`feature-tab-btn ${activeTab === 'leave' ? 'active' : ''}`}
+              onClick={() => setActiveTab('leave')}
+            >
+              <div className="tab-icon-wrapper"><CalendarDays size={18} /></div>
+              <div className="tab-text">
+                <h3>Leave management</h3>
+                <p>Plan time away, request time-off, and track balances effortlessly.</p>
+              </div>
+            </button>
+
+            <button 
+              className={`feature-tab-btn ${activeTab === 'payroll' ? 'active' : ''}`}
+              onClick={() => setActiveTab('payroll')}
+            >
+              <div className="tab-icon-wrapper"><WalletCards size={18} /></div>
+              <div className="tab-text">
+                <h3>Payroll visibility</h3>
+                <p>Check processing payouts, deductions, and payment histories clearly.</p>
+              </div>
+            </button>
+
+            <button 
+              className={`feature-tab-btn ${activeTab === 'employees' ? 'active' : ''}`}
+              onClick={() => setActiveTab('employees')}
+            >
+              <div className="tab-icon-wrapper"><UsersRound size={18} /></div>
+              <div className="tab-text">
+                <h3>Employee directory</h3>
+                <p>Browse team structure, status indicators, and coworker roles in seconds.</p>
+              </div>
+            </button>
           </div>
-          
-          {/* Bento Card 2: Attendance */}
-          <div className="feature-panel feature-lilac">
-            <span className="feature-tag">Attendance insights</span>
-            <h3>Know how your<br />team is doing.</h3>
-            <p>Real-time analytics for present, absent, and remote statuses.</p>
-            <div className="feature-chart" aria-hidden="true">
-              <span style={{ height: '40%' }} />
-              <span style={{ height: '65%' }} />
-              <span style={{ height: '50%' }} />
-              <span style={{ height: '80%' }} />
-              <span style={{ height: '60%' }} />
-              <span style={{ height: '95%' }} />
-              <span style={{ height: '75%' }} />
-            </div>
-            <div className="feature-numbers">
-              <strong>95% <small>Present</small></strong>
-              <strong>3% <small>On leave</small></strong>
-              <strong>2% <small>Remote</small></strong>
-            </div>
-          </div>
-          
-          {/* Bento Card 3: Payroll */}
-          <div className="feature-panel feature-mint">
-            <span className="feature-tag">Payroll visibility</span>
-            <h3>Compensation,<br />made simple.</h3>
-            <p>Track earnings, salary history, and upcoming payouts at a glance.</p>
-            <div className="payroll-chip">
-              <span>Sarah Johnson</span>
-              <strong>$4,800 <small>Processed</small></strong>
-            </div>
-            <div className="payroll-chip second">
-              <span>Mika Davis</span>
-              <strong>$5,500 <small>Pending</small></strong>
+
+          <div className="features-visual-preview">
+            <div className="preview-container">
+              {activeTab === 'attendance' && (
+                <div className="preview-content preview-attendance animate-scale-up">
+                  <div className="preview-card-header">
+                    <span className="preview-card-title">Attendance Tracking</span>
+                    <span className="preview-badge badge-green">Live status</span>
+                  </div>
+                  <div className="preview-attendance-widget">
+                    <div className="preview-clock">09:12 AM</div>
+                    <div className="preview-clock-label">Checked in today at 09:12 AM</div>
+                    <div className="preview-progress-bar"><span style={{ width: '74%' }} /></div>
+                    <div className="preview-stat-row">
+                      <div><span>Today's Hours</span><strong>6h 18m</strong></div>
+                      <div><span>Status</span><strong className="text-green">Active</strong></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'leave' && (
+                <div className="preview-content preview-leave animate-scale-up">
+                  <div className="preview-card-header">
+                    <span className="preview-card-title">Leave Request</span>
+                    <span className="preview-badge badge-yellow">Pending approval</span>
+                  </div>
+                  <div className="preview-leave-details">
+                    <div className="preview-leave-type">Annual Leave</div>
+                    <div className="preview-leave-dates">Oct 28 – Oct 30 (3 days)</div>
+                    <div className="preview-leave-avatar">
+                      <Avatar initials="AS" tone="ink" small />
+                      <span>Requested by Alex Smith</span>
+                    </div>
+                    <div className="preview-leave-actions">
+                      <button className="preview-btn-decline" disabled>Decline</button>
+                      <button className="preview-btn-approve" disabled>Approve</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'payroll' && (
+                <div className="preview-content preview-payroll animate-scale-up">
+                  <div className="preview-card-header">
+                    <span className="preview-card-title">Upcoming Payslip</span>
+                    <span className="preview-badge badge-blue">Processing</span>
+                  </div>
+                  <div className="preview-payroll-breakdown">
+                    <div className="payroll-item"><span>Base Salary</span><strong>$5,200.00</strong></div>
+                    <div className="payroll-item"><span>Tax Deductions</span><strong>-$640.00</strong></div>
+                    <div className="payroll-item"><span>Benefits (Health)</span><strong>-$120.00</strong></div>
+                    <hr className="payroll-divider" />
+                    <div className="payroll-item net-pay"><span>Net Payout</span><strong>$4,440.00</strong></div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'employees' && (
+                <div className="preview-content preview-employees animate-scale-up">
+                  <div className="preview-card-header">
+                    <span className="preview-card-title">Team Availability</span>
+                    <span className="preview-badge badge-gray">18 online</span>
+                  </div>
+                  <div className="preview-employee-list">
+                    <div className="employee-row">
+                      <Avatar initials="MC" tone="coral" small />
+                      <div><strong>Maya Chen</strong><span>Product Designer</span></div>
+                      <span className="status-dot dot-online" />
+                    </div>
+                    <div className="employee-row">
+                      <Avatar initials="JL" tone="blue" small />
+                      <div><strong>Jordan Lee</strong><span>Engineering</span></div>
+                      <span className="status-dot dot-remote" />
+                    </div>
+                    <div className="employee-row">
+                      <Avatar initials="PS" tone="yellow" small />
+                      <div><strong>Priya Shah</strong><span>Operations</span></div>
+                      <span className="status-dot dot-leave" />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </section>
 
       {/* Benefits Section */}
-      <section className="landing-proof" id="benefits" aria-labelledby="benefits-title">
+      <section className="landing-proof reveal" id="benefits" aria-labelledby="benefits-title" ref={proofRef}>
         <div>
           <span className="hero-pill">Built for people teams</span>
           <h2 id="benefits-title">Good work happens<br /><em>when things flow.</em></h2>
         </div>
         <div className="proof-stats">
           <div>
-            <strong>2.4k+</strong>
+            <strong>
+              {teamsOrganized >= 2400 ? '2.4k+' : `${(teamsOrganized / 1000).toFixed(1)}k+`}
+            </strong>
             <span>teams organized</span>
           </div>
           <div>
-            <strong>34%</strong>
+            <strong>{adminTimeSaved}%</strong>
             <span>less admin time</span>
           </div>
           <div>
-            <strong>4.9/5</strong>
+            <strong>{(satisfactionRaw / 10).toFixed(1)}/5</strong>
             <span>team satisfaction</span>
           </div>
         </div>
@@ -379,12 +531,12 @@ function Home({ onOpenDashboard, theme, setTheme }: { onOpenDashboard: () => voi
 
       {/* Stories Section */}
       <section className="landing-stories" id="stories" aria-labelledby="stories-title">
-        <div className="section-intro">
+        <div className="section-intro reveal">
           <span className="hero-pill">People success stories</span>
           <h2 id="stories-title">Made to feel<br /><em>effortless.</em></h2>
         </div>
         <div className="story-grid">
-          <div className="story-card">
+          <div className="story-card reveal transition-delay-100">
             <span className="quote-mark" aria-hidden="true">“</span>
             <p>Dayflow gives us the clarity to care about our people, not chase spreadsheets.</p>
             <div className="story-author">
@@ -395,7 +547,7 @@ function Home({ onOpenDashboard, theme, setTheme }: { onOpenDashboard: () => voi
               </span>
             </div>
           </div>
-          <div className="story-card story-card-peach">
+          <div className="story-card story-card-peach reveal transition-delay-200">
             <span className="quote-mark" aria-hidden="true">“</span>
             <p>The instant performance insights help us make better decisions without adding more process.</p>
             <div className="story-author">
@@ -410,7 +562,7 @@ function Home({ onOpenDashboard, theme, setTheme }: { onOpenDashboard: () => voi
       </section>
 
       {/* Bottom CTA Section */}
-      <section className="landing-cta" id="cta" aria-labelledby="cta-title">
+      <section className="landing-cta reveal" id="cta" aria-labelledby="cta-title">
         <div className="cta-content">
           <span className="hero-pill">Get Started</span>
           <h2 id="cta-title">Start flowing today.</h2>
@@ -425,7 +577,7 @@ function Home({ onOpenDashboard, theme, setTheme }: { onOpenDashboard: () => voi
 
       {/* Footer Section */}
       <footer className="landing-footer" id="contact" role="contentinfo">
-        <div className="footer-grid">
+        <div className="footer-grid reveal">
           <div className="footer-brand-col">
             <a href="#" className="landing-brand" aria-label="Dayflow Home">
               <div className="brand-mark"><Grid2X2 size={17} /></div>
