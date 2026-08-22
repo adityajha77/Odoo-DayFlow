@@ -1,6 +1,6 @@
-import { PrismaClient, Role, LeaveStatus, AttendanceStatus } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { Role, LeaveStatus, AttendanceStatus } from '@prisma/client';
+import process from 'process';
+import prisma from '../src/config/prisma';
 
 async function main() {
   console.log('🌱 Starting Supabase database seeding...');
