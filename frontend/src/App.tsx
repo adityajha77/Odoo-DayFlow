@@ -394,23 +394,38 @@ function App() {
           )}
 
           {currentUser ? (
-            <div className="account-menu-wrap" style={{ position: 'relative' }}>
+            <div className="account-menu-wrap">
               <button className={`account-card ${collapsed ? 'account-card-collapsed' : ''}`} onClick={() => changePage('Profile')}>
-                <Avatar initials={getInitials(currentUser.firstName, currentUser.lastName)} tone={currentUser.avatarTone} small />
+                <div className="account-avatar-wrap">
+                  <Avatar initials={getInitials(currentUser.firstName, currentUser.lastName)} tone={currentUser.avatarTone} small />
+                  <span className="online-dot" />
+                </div>
                 {!collapsed && (
-                  <span>
+                  <div className="account-info">
                     <strong>{currentUser.firstName} {currentUser.lastName}</strong>
-                    <small className={`user-role-badge ${currentUser.role === 'ADMIN' ? 'role-badge-admin' : 'role-badge-employee'}`}>
-                      {currentUser.role}
+                    <small className={`user-role-pill ${currentUser.role === 'ADMIN' ? 'role-pill-admin' : currentUser.role === 'HR_OFFICER' ? 'role-pill-hr' : 'role-pill-employee'}`}>
+                      {currentUser.role === 'HR_OFFICER' ? 'HR Officer' : currentUser.role === 'ADMIN' ? 'Admin' : 'Employee'}
                     </small>
-                  </span>
+                  </div>
                 )}
-                {!collapsed && <MoreHorizontal size={17} />}
+                {!collapsed && <ChevronDown size={14} className="account-chevron" />}
               </button>
               {!collapsed && (
-                <button className="logout-item" onClick={handleLogout} style={{ marginTop: '6px' }}>
-                  <LogOut size={15} /> Sign out
-                </button>
+                <div className="account-dropdown">
+                  <button className="account-dropdown-item" onClick={() => changePage('Profile')}>
+                    <UserRound size={14} />
+                    <span>My Profile</span>
+                  </button>
+                  <button className="account-dropdown-item" onClick={() => setToast('Settings are ready for your workspace')}>
+                    <Settings size={14} />
+                    <span>Settings</span>
+                  </button>
+                  <div className="account-dropdown-divider" />
+                  <button className="account-dropdown-item account-dropdown-danger" onClick={handleLogout}>
+                    <LogOut size={14} />
+                    <span>Sign out</span>
+                  </button>
+                </div>
               )}
             </div>
           ) : (
