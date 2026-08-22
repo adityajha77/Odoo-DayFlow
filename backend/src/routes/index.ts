@@ -6,6 +6,7 @@ import leavesRouter from './leaves';
 import payrollRouter from './payroll';
 import authRouter from './auth';
 import tasksRouter from './tasks';
+import notificationsRouter from './notifications';
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use('/employees', employeesRouter);
 router.use('/attendance', attendanceRouter);
 router.use('/leaves', leavesRouter);
 router.use('/payroll', payrollRouter);
+router.use('/notifications', notificationsRouter);
 
 export default router;

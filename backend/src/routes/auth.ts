@@ -59,6 +59,7 @@ router.post('/signup', async (req, res) => {
       department: newUser.employee?.department || 'Operations',
       role: newUser.role,
       avatarTone: newUser.employee?.avatarTone || 'coral',
+      employeeId: newUser.employee?.id || null,
       profileCompleted: true,
     };
 
@@ -113,6 +114,7 @@ router.post('/login', async (req, res) => {
       department: user.employee?.department || 'Operations',
       role: user.role,
       avatarTone: user.employee?.avatarTone || 'coral',
+      employeeId: user.employee?.id || null,
       profileCompleted: true,
     };
 
@@ -158,6 +160,7 @@ router.get('/me', async (req, res) => {
       department: user.employee?.department || 'Operations',
       role: user.role,
       avatarTone: user.employee?.avatarTone || 'coral',
+      employeeId: user.employee?.id || null,
       profileCompleted: true,
     };
 
