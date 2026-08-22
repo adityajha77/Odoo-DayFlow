@@ -53,6 +53,7 @@ export interface UserProfile {
   department: string;
   role: UserRole;
   avatarTone: string;
+  employeeId?: string | null;
   profileCompleted: boolean;
 }
 
@@ -231,10 +232,34 @@ function App() {
     return allNavItems.filter(i => !i.adminOnly);
   }, [currentUser]);
 
-  const handleCheckIn = () => {
-    const nextValue = !checkedIn;
-    setCheckedIn(nextValue);
-    setToast(nextValue ? 'Check-in recorded at ' + formatTime(currentTime) : 'You are checked out for today');
+  const handleCheckIn = async () => {
+    if (!currentUser?.employeeId) {
+      // Demo mode — no real employee in DB
+      const nextValue = !checkedIn;
+      setCheckedIn(nextValue);
+      setToast(nextValue ? 'Check-in recorded at ' + formatTime(currentTime) : 'You are checked out for today');
+      return;
+    }
+    const endpoint = checkedIn ? 'check-out' : 'check-in';
+    try {
+      const res = await fetch(`${API_BASE_URL}/attendance/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
+        body: JSON.stringify({ employeeId: currentUser.employeeId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCheckedIn(!checkedIn);
+        setToast(checkedIn ? 'Checked out successfully!' : 'Checked in successfully at ' + formatTime(currentTime));
+      } else {
+        setToast(data.message || 'Failed to update attendance.');
+      }
+    } catch {
+      // Fallback for offline
+      const nextValue = !checkedIn;
+      setCheckedIn(nextValue);
+      setToast(nextValue ? 'Check-in recorded (offline)' : 'Checked out (offline)');
+    }
   };
 
   const changePage = (page: Page) => {
@@ -521,7 +546,7 @@ function App() {
             setToast={setToast}
           />
         ) : activePage === 'Attendance' ? (
-          <AttendancePage checkedIn={checkedIn} handleCheckIn={handleCheckIn} currentTime={currentTime} setToast={setToast} />
+          <AttendancePage user={currentUser} authToken={authToken} checkedIn={checkedIn} handleCheckIn={handleCheckIn} currentTime={currentTime} setToast={setToast} />
         ) : activePage === 'Leave' ? (
           <LeavePage user={currentUser} setToast={setToast} />
         ) : activePage === 'Payroll' ? (
@@ -864,11 +889,15 @@ function TaskBoard({
 
 /* === ATTENDANCE MODULE === */
 function AttendancePage({
+  user,
+  authToken,
   checkedIn,
   handleCheckIn,
   currentTime,
   setToast,
 }: {
+  user: UserProfile | null;
+  authToken: string | null;
   checkedIn: boolean;
   handleCheckIn: () => void;
   currentTime: Date;
@@ -877,15 +906,27 @@ function AttendancePage({
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch(`${API_BASE_URL}/attendance`)
+  const fetchLogs = () => {
+    const query = user?.employeeId ? `?employeeId=${user.employeeId}` : '';
+    fetch(`${API_BASE_URL}/attendance${query}`, {
+      headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+    })
       .then(res => res.json())
-      .then(data => {
-        if (data.success) setLogs(data.data);
-      })
+      .then(data => { if (data.success) setLogs(data.data); })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [checkedIn]);
+  };
+
+  useEffect(() => {
+    fetchLogs();
+  }, [checkedIn, user?.employeeId]);
+
+  // Compute real stats from logs
+  const presentDays = logs.filter(l => l.status === 'PRESENT' || l.status === 'LATE').length;
+  const lateDays = logs.filter(l => l.status === 'LATE').length;
+  const avgHours = logs.length > 0
+    ? (logs.reduce((sum, l) => sum + (parseFloat(l.totalHours) || 0), 0) / logs.length).toFixed(1)
+    : '—';
 
   return (
     <div className="page-content">
@@ -908,18 +949,18 @@ function AttendancePage({
         </div>
         <div className="summary-card">
           <span>Days Present (This Month)</span>
-          <strong>18 Days</strong>
-          <small>94.7% Attendance rate</small>
+          <strong>{presentDays > 0 ? `${presentDays} Days` : '—'}</strong>
+          <small>{presentDays > 0 ? `${((presentDays / 22) * 100).toFixed(0)}% Attendance rate` : 'No records yet'}</small>
         </div>
         <div className="summary-card">
           <span>Avg. Daily Hours</span>
-          <strong>8.2 Hours</strong>
+          <strong>{avgHours !== '—' ? `${avgHours} hrs` : '—'}</strong>
           <small>Standard: 8.0 Hours</small>
         </div>
         <div className="summary-card">
           <span>Late Arrivals</span>
-          <strong>1 Day</strong>
-          <small>Within acceptable buffer</small>
+          <strong>{lateDays > 0 ? `${lateDays} Day(s)` : 'None'}</strong>
+          <small>{lateDays > 0 ? 'Within acceptable buffer' : 'Great punctuality!'}</small>
         </div>
       </div>
 
@@ -938,7 +979,7 @@ function AttendancePage({
             {loading ? (
               <tr><td colSpan={5} style={{ textAlign: 'center', padding: '24px' }}>Loading attendance records...</td></tr>
             ) : logs.length === 0 ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '24px' }}>No records found.</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: 'var(--muted)' }}>No records yet. Click <strong>Check In Now</strong> to log today's attendance.</td></tr>
             ) : (
               logs.map(log => (
                 <tr key={log.id}>
@@ -974,11 +1015,10 @@ function LeavePage({ user, setToast }: { user: UserProfile | null; setToast: (ms
   const [reason, setReason] = useState('');
 
   const fetchLeaves = () => {
-    fetch(`${API_BASE_URL}/leaves`)
+    const query = user?.employeeId && user.role !== 'ADMIN' ? `?employeeId=${user.employeeId}` : '';
+    fetch(`${API_BASE_URL}/leaves${query}`)
       .then(res => res.json())
-      .then(data => {
-        if (data.success) setLeaves(data.data);
-      })
+      .then(data => { if (data.success) setLeaves(data.data); })
       .catch(() => {})
       .finally(() => setLoading(false));
   };
@@ -989,15 +1029,20 @@ function LeavePage({ user, setToast }: { user: UserProfile | null; setToast: (ms
 
   const handleApplyLeave = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user?.employeeId) {
+      setToast('Cannot apply leave: no employee profile linked. Please register with an account.');
+      return;
+    }
     fetch(`${API_BASE_URL}/leaves`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        employeeId: user.employeeId,
         type: leaveType,
+        leaveType,
         startDate,
         endDate,
         reason,
-        employeeName: user ? `${user.firstName} ${user.lastName}` : 'Current Employee',
       }),
     })
       .then(res => res.json())
@@ -1006,9 +1051,14 @@ function LeavePage({ user, setToast }: { user: UserProfile | null; setToast: (ms
           setToast('Leave request submitted successfully!');
           setShowApplyModal(false);
           setReason('');
+          setStartDate('');
+          setEndDate('');
           fetchLeaves();
+        } else {
+          setToast(data.message || 'Failed to submit leave request.');
         }
-      });
+      })
+      .catch(() => setToast('Network error. Please try again.'));
   };
 
   const handleUpdateStatus = (id: string, status: string) => {
@@ -1181,11 +1231,10 @@ function PayrollPage({ user, setToast }: { user: UserProfile | null; setToast: (
   const [deductions, setDeductions] = useState('450');
 
   const fetchPayroll = () => {
-    fetch(`${API_BASE_URL}/payroll`)
+    const query = user?.employeeId && user.role !== 'ADMIN' ? `?employeeId=${user.employeeId}` : '';
+    fetch(`${API_BASE_URL}/payroll${query}`)
       .then(res => res.json())
-      .then(data => {
-        if (data.success) setPayrolls(data.data);
-      })
+      .then(data => { if (data.success) setPayrolls(data.data); })
       .catch(() => {})
       .finally(() => setLoading(false));
   };
@@ -1196,16 +1245,20 @@ function PayrollPage({ user, setToast }: { user: UserProfile | null; setToast: (
 
   const handleGeneratePayroll = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user?.employeeId) {
+      setToast('Cannot generate payroll: no employee profile linked.');
+      return;
+    }
     fetch(`${API_BASE_URL}/payroll`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        employeeId: user.employeeId,
         month,
         year: 2026,
         basicSalary,
         allowances,
         deductions,
-        employeeName: user ? `${user.firstName} ${user.lastName}` : 'Workspace Employee',
       }),
     })
       .then(res => res.json())
@@ -1214,8 +1267,11 @@ function PayrollPage({ user, setToast }: { user: UserProfile | null; setToast: (
           setToast('Payroll processed & payslip generated!');
           setShowGenModal(false);
           fetchPayroll();
+        } else {
+          setToast(data.message || 'Failed to generate payroll.');
         }
-      });
+      })
+      .catch(() => setToast('Network error. Please try again.'));
   };
 
   return (
