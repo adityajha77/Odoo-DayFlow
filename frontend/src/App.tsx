@@ -536,7 +536,7 @@ function Home({ onOpenWorkspace, onSignIn }: { onOpenWorkspace: () => void; onSi
       <LandingFeatures />
       <LandingStories />
       <LandingCTA onOpenDashboard={onOpenWorkspace} />
-      <LandingFooter />
+      <LandingFooter onOpenDashboard={onOpenWorkspace} />
     </div>
   );
 }
