@@ -29,6 +29,7 @@ import {
   X,
 } from 'lucide-react';
 import './App.css';
+import { LandingHeader } from './components/LandingHeader';
 
 type Page = 'Home' | 'Overview' | 'My tasks' | 'Attendance' | 'Leave' | 'Payroll' | 'People' | 'Profile';
 
@@ -78,7 +79,23 @@ function Avatar({ initials, tone = 'coral', small = false }: { initials: string;
 function App() {
   const [activePage, setActivePage] = useState<Page>('Home');
   const [collapsed, setCollapsed] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
+    return (localStorage.getItem('dayflow-theme') as 'light' | 'dark' | 'system') || 'system';
+  });
   const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('dayflow-theme', theme);
+    if (theme === 'system') {
+      const media = window.matchMedia('(prefers-color-scheme: dark)');
+      setDarkMode(media.matches);
+      const listener = (e: MediaQueryListEvent) => setDarkMode(e.matches);
+      media.addEventListener('change', listener);
+      return () => media.removeEventListener('change', listener);
+    } else {
+      setDarkMode(theme === 'dark');
+    }
+  }, [theme]);
   const [checkedIn, setCheckedIn] = useState(true);
   const [role, setRole] = useState<'Employee' | 'HR officer'>('Employee');
   const [showRoleMenu, setShowRoleMenu] = useState(false);
@@ -164,26 +181,293 @@ function App() {
           </div>
         </header>
 
-        {activePage === 'Home' ? <Home onOpenDashboard={() => changePage('Overview')} /> : activePage === 'Overview' ? <Dashboard greeting={greeting} formattedDate={formattedDate} currentTime={currentTime} checkedIn={checkedIn} handleCheckIn={handleCheckIn} date={date} setDate={setDate} role={role} setToast={setToast} /> : activePage === 'Profile' ? <Profile setToast={setToast} /> : activePage === 'My tasks' ? <TaskPage setToast={setToast} /> : <PlaceholderPage page={activePage} role={role} setToast={setToast} />}
+        {activePage === 'Home' ? <Home onOpenDashboard={() => changePage('Overview')} theme={theme} setTheme={setTheme} /> : activePage === 'Overview' ? <Dashboard greeting={greeting} formattedDate={formattedDate} currentTime={currentTime} checkedIn={checkedIn} handleCheckIn={handleCheckIn} date={date} setDate={setDate} role={role} setToast={setToast} /> : activePage === 'Profile' ? <Profile setToast={setToast} /> : activePage === 'My tasks' ? <TaskPage setToast={setToast} /> : <PlaceholderPage page={activePage} role={role} setToast={setToast} />}
       </main>
       {toast && <div className="toast"><div className="toast-check"><Check size={15} /></div>{toast}<button onClick={() => setToast('')}><X size={14} /></button></div>}
     </div>
   );
 }
 
-function Home({ onOpenDashboard }: { onOpenDashboard: () => void }) {
-  return <div className="landing-page">
-    <section className="landing-hero">
-      <div className="landing-nav"><div className="landing-brand"><div className="brand-mark"><Grid2X2 size={17} /></div><span>dayflow<span>.</span></span></div><div className="landing-links"><a href="#features">Features</a><a href="#benefits">Benefits</a><a href="#stories">Stories</a><a href="#contact">Contact</a></div><div className="landing-nav-actions"><button className="landing-ghost" onClick={onOpenDashboard}>Sign in</button><button className="landing-dark" onClick={onOpenDashboard}>Open workspace <ChevronRight size={15} /></button></div></div>
-      <div className="hero-copy"><span className="hero-pill">One workspace for every workday</span><h1>HR operations with <em>real-time</em> clarity.</h1><p>Dayflow brings people, attendance, payroll, and everyday work into one calm, beautifully organized workspace.</p><button className="hero-cta" onClick={onOpenDashboard}>Explore the workspace <ChevronRight size={16} /></button></div>
-      <div className="hero-visual"><div className="hero-float float-left"><strong>18</strong><span>people online</span><div className="float-dots"><i /><i /><i /><i /></div></div><div className="hero-image-frame"><img src="https://images.pexels.com/photos/8117466/pexels-photo-8117466.jpeg?auto=compress&cs=tinysrgb&h=650&w=940" alt="Dayflow workspace preview" /></div><div className="hero-float float-right"><div className="float-check"><Check size={13} /></div><strong>96.4%</strong><span>attendance rate</span></div></div>
-      <div className="hero-rule" />
-    </section>
-    <section className="landing-section" id="features"><div className="section-intro"><span className="hero-pill">Everything in sync</span><h2>A calmer way to run<br /><em>your workday.</em></h2><p>Less switching. More doing. Dayflow gives your team a clear view of what matters now and what comes next.</p></div><div className="feature-bento"><div className="feature-panel feature-yellow"><span className="feature-tag">Smart scheduling</span><h3>Make every hour<br />count.</h3><p>Manage meetings, interviews, and focus time from one intelligent calendar.</p><div className="schedule-list"><span><b>09:00</b> Team standup <i /></span><span><b>11:30</b> Design review <i /></span><span><b>14:00</b> Focus time <i /></span></div></div><div className="feature-panel feature-lilac"><span className="feature-tag">Attendance insights</span><h3>Know how your<br />team is doing.</h3><div className="feature-chart"><span /><span /><span /><span /><span /><span /><span /></div><div className="feature-numbers"><strong>95% <small>Present</small></strong><strong>3% <small>On leave</small></strong><strong>2% <small>Remote</small></strong></div></div><div className="feature-panel feature-mint"><span className="feature-tag">Payroll visibility</span><h3>Compensation,<br />made simple.</h3><div className="payroll-chip"><span>Sarah Johnson</span><strong>$4,800 <small>Processed</small></strong></div><div className="payroll-chip second"><span>Mika Davis</span><strong>$5,500 <small>Pending</small></strong></div></div></div></section>
-    <section className="landing-proof" id="benefits"><div><span className="hero-pill">Built for people teams</span><h2>Good work happens<br /><em>when things flow.</em></h2></div><div className="proof-stats"><div><strong>2.4k+</strong><span>teams organized</span></div><div><strong>34%</strong><span>less admin time</span></div><div><strong>4.9/5</strong><span>team satisfaction</span></div></div></section>
-    <section className="landing-stories" id="stories"><div className="section-intro"><span className="hero-pill">People success stories</span><h2>Made to feel<br /><em>effortless.</em></h2></div><div className="story-grid"><div className="story-card"><span className="quote-mark">“</span><p>Dayflow gives us the clarity to care about our people, not chase spreadsheets.</p><div><Avatar initials="JS" tone="blue" small /><span><strong>Jamie Smith</strong><small>Head of People, Triply</small></span></div></div><div className="story-card story-card-peach"><span className="quote-mark">“</span><p>The instant performance insights help us make better decisions without adding more process.</p><div><Avatar initials="JA" tone="yellow" small /><span><strong>Jordan Adams</strong><small>People Ops, Affine</small></span></div></div></div></section>
-    <footer className="landing-footer" id="contact"><div className="landing-brand"><div className="brand-mark"><Grid2X2 size={17} /></div><span>dayflow<span>.</span></span></div><p>Every workday, perfectly aligned.</p><div className="footer-links"><a href="#features">Features</a><a href="#benefits">Benefits</a><a href="#contact">Contact</a></div><span className="copyright">© 2026 Dayflow</span></footer>
-  </div>;
+function Home({ onOpenDashboard, theme, setTheme }: { onOpenDashboard: () => void, theme: 'light' | 'dark' | 'system', setTheme: (t: 'light' | 'dark' | 'system') => void }) {
+  return (
+    <div className="landing-page" role="main">
+      {/* Hero Section */}
+      <section className="landing-hero" aria-label="Introduction">
+        <LandingHeader onOpenDashboard={onOpenDashboard} theme={theme} setTheme={setTheme} />
+        
+        <div className="hero-container">
+          <div className="hero-copy">
+            <span className="hero-pill" role="text">One workspace for every workday</span>
+            <h1>HR operations with <em>real-time</em> clarity.</h1>
+            <p>Dayflow brings people, attendance, payroll, and everyday work into one calm, beautifully organized workspace.</p>
+            <div className="hero-actions">
+              <button className="hero-cta" onClick={onOpenDashboard}>
+                Explore the workspace <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+          
+          <div className="hero-visual" aria-hidden="true">
+            {/* Interactive/high-fidelity pure CSS Dashboard Mockup */}
+            <div className="dashboard-mockup">
+              <div className="mockup-chrome">
+                <div className="chrome-dots">
+                  <span className="dot red" />
+                  <span className="dot yellow" />
+                  <span className="dot green" />
+                </div>
+                <div className="chrome-search">dayflow.co/workspace/alex</div>
+              </div>
+              <div className="mockup-frame">
+                <div className="mockup-side">
+                  <div className="mockup-brand">
+                    <div className="mockup-logo-mark"><Grid2X2 size={11} /></div>
+                    <span>dayflow</span>
+                  </div>
+                  <div className="mockup-nav-group">
+                    <span className="mockup-nav-item active"><HomeIcon size={12} /> Overview</span>
+                    <span className="mockup-nav-item"><Clock3 size={12} /> Attendance</span>
+                    <span className="mockup-nav-item"><CalendarDays size={12} /> Leave</span>
+                    <span className="mockup-nav-item"><WalletCards size={12} /> Payroll</span>
+                  </div>
+                </div>
+                <div className="mockup-main">
+                  <div className="mockup-top-row">
+                    <div>
+                      <h6>Good morning, Alex</h6>
+                      <span>October 24, 2024</span>
+                    </div>
+                    <div className="mockup-status-indicator">Present</div>
+                  </div>
+                  
+                  <div className="mockup-grid">
+                    <div className="mockup-card card-attendance">
+                      <span className="card-label">ON THE CLOCK</span>
+                      <strong className="card-val">09:12 AM</strong>
+                      <span className="card-sub">Working since 9:12</span>
+                    </div>
+                    <div className="mockup-card card-timeoff">
+                      <span className="card-label">AVAILABLE LEAVE</span>
+                      <strong className="card-val">14 Days</strong>
+                      <span className="card-sub">Paid time off</span>
+                    </div>
+                  </div>
+
+                  <div className="mockup-list-card">
+                    <span className="card-label">TODAY'S EVENTS</span>
+                    <div className="mockup-list-item">
+                      <div className="item-left">
+                        <span className="event-color peach" />
+                        <strong>Design team sync</strong>
+                      </div>
+                      <span>11:30 AM</span>
+                    </div>
+                    <div className="mockup-list-item">
+                      <div className="item-left">
+                        <span className="event-color lilac" />
+                        <strong>Q4 planning session</strong>
+                      </div>
+                      <span>03:00 PM</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Elegant floating status cards */}
+            <div className="hero-float float-left">
+              <strong>18</strong>
+              <span>people online</span>
+              <div className="float-dots">
+                <span className="dot-live" />
+                <span className="dot-live" />
+                <span className="dot-live" />
+                <span className="dot-live" />
+              </div>
+            </div>
+            <div className="hero-float float-right">
+              <div className="float-check"><Check size={13} /></div>
+              <strong>96.4%</strong>
+              <span>attendance rate</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="hero-rule" />
+      </section>
+
+      {/* Features Section */}
+      <section className="landing-section" id="features" aria-labelledby="features-title">
+        <div className="section-intro">
+          <span className="hero-pill">Everything in sync</span>
+          <h2 id="features-title">A calmer way to run<br /><em>your workday.</em></h2>
+          <p>Less switching. More doing. Dayflow gives your team a clear view of what matters now and what comes next.</p>
+        </div>
+        
+        <div className="feature-bento">
+          {/* Bento Card 1: Scheduling */}
+          <div className="feature-panel feature-yellow">
+            <span className="feature-tag">Smart scheduling</span>
+            <h3>Make every hour<br />count.</h3>
+            <p>Manage meetings, interviews, and focus time from one intelligent calendar.</p>
+            <div className="schedule-list">
+              <span><b>09:00</b> Team standup <i /></span>
+              <span><b>11:30</b> Design review <i /></span>
+              <span><b>14:00</b> Focus time <i /></span>
+            </div>
+          </div>
+          
+          {/* Bento Card 2: Attendance */}
+          <div className="feature-panel feature-lilac">
+            <span className="feature-tag">Attendance insights</span>
+            <h3>Know how your<br />team is doing.</h3>
+            <p>Real-time analytics for present, absent, and remote statuses.</p>
+            <div className="feature-chart" aria-hidden="true">
+              <span style={{ height: '40%' }} />
+              <span style={{ height: '65%' }} />
+              <span style={{ height: '50%' }} />
+              <span style={{ height: '80%' }} />
+              <span style={{ height: '60%' }} />
+              <span style={{ height: '95%' }} />
+              <span style={{ height: '75%' }} />
+            </div>
+            <div className="feature-numbers">
+              <strong>95% <small>Present</small></strong>
+              <strong>3% <small>On leave</small></strong>
+              <strong>2% <small>Remote</small></strong>
+            </div>
+          </div>
+          
+          {/* Bento Card 3: Payroll */}
+          <div className="feature-panel feature-mint">
+            <span className="feature-tag">Payroll visibility</span>
+            <h3>Compensation,<br />made simple.</h3>
+            <p>Track earnings, salary history, and upcoming payouts at a glance.</p>
+            <div className="payroll-chip">
+              <span>Sarah Johnson</span>
+              <strong>$4,800 <small>Processed</small></strong>
+            </div>
+            <div className="payroll-chip second">
+              <span>Mika Davis</span>
+              <strong>$5,500 <small>Pending</small></strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Benefits Section */}
+      <section className="landing-proof" id="benefits" aria-labelledby="benefits-title">
+        <div>
+          <span className="hero-pill">Built for people teams</span>
+          <h2 id="benefits-title">Good work happens<br /><em>when things flow.</em></h2>
+        </div>
+        <div className="proof-stats">
+          <div>
+            <strong>2.4k+</strong>
+            <span>teams organized</span>
+          </div>
+          <div>
+            <strong>34%</strong>
+            <span>less admin time</span>
+          </div>
+          <div>
+            <strong>4.9/5</strong>
+            <span>team satisfaction</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Stories Section */}
+      <section className="landing-stories" id="stories" aria-labelledby="stories-title">
+        <div className="section-intro">
+          <span className="hero-pill">People success stories</span>
+          <h2 id="stories-title">Made to feel<br /><em>effortless.</em></h2>
+        </div>
+        <div className="story-grid">
+          <div className="story-card">
+            <span className="quote-mark" aria-hidden="true">“</span>
+            <p>Dayflow gives us the clarity to care about our people, not chase spreadsheets.</p>
+            <div className="story-author">
+              <Avatar initials="JS" tone="blue" small />
+              <span>
+                <strong>Jamie Smith</strong>
+                <small>Head of People, Triply</small>
+              </span>
+            </div>
+          </div>
+          <div className="story-card story-card-peach">
+            <span className="quote-mark" aria-hidden="true">“</span>
+            <p>The instant performance insights help us make better decisions without adding more process.</p>
+            <div className="story-author">
+              <Avatar initials="JA" tone="yellow" small />
+              <span>
+                <strong>Jordan Adams</strong>
+                <small>People Ops, Affine</small>
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Bottom CTA Section */}
+      <section className="landing-cta" id="cta" aria-labelledby="cta-title">
+        <div className="cta-content">
+          <span className="hero-pill">Get Started</span>
+          <h2 id="cta-title">Start flowing today.</h2>
+          <p>Join the teams that run their daily HR operations with clarity, calm, and zero friction.</p>
+          <div className="cta-actions">
+            <button className="hero-cta" onClick={onOpenDashboard}>
+              Explore Workspace Now <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer Section */}
+      <footer className="landing-footer" id="contact" role="contentinfo">
+        <div className="footer-grid">
+          <div className="footer-brand-col">
+            <a href="#" className="landing-brand" aria-label="Dayflow Home">
+              <div className="brand-mark"><Grid2X2 size={17} /></div>
+              <span>dayflow<span>.</span></span>
+            </a>
+            <p>Dayflow brings calm and efficiency to workplace management, attendance, leave planning, and payroll operations.</p>
+          </div>
+          <div className="footer-links-col">
+            <h4>Product</h4>
+            <nav aria-label="Footer Product links">
+              <a href="#features">Features</a>
+              <a href="#benefits">Benefits</a>
+              <a href="#stories">Customer Stories</a>
+            </nav>
+          </div>
+          <div className="footer-links-col">
+            <h4>Resources</h4>
+            <nav aria-label="Footer Resource links">
+              <a href="#" onClick={(e) => { e.preventDefault(); onOpenDashboard(); }}>Overview</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); onOpenDashboard(); }}>My Tasks</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); onOpenDashboard(); }}>Profile</a>
+            </nav>
+          </div>
+          <div className="footer-links-col">
+            <h4>Support</h4>
+            <nav aria-label="Footer Support links">
+              <a href="#" onClick={(e) => { e.preventDefault(); }}>Help Center</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); }}>API Reference</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); }}>Status Page</a>
+            </nav>
+          </div>
+        </div>
+        <div className="footer-bottom">
+          <span className="copyright">© 2026 Dayflow. Every workday, perfectly aligned.</span>
+          <div className="footer-legal">
+            <a href="#" onClick={(e) => e.preventDefault()}>Privacy Policy</a>
+            <a href="#" onClick={(e) => e.preventDefault()}>Terms of Service</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
 }
 
 function Dashboard({ greeting, formattedDate, currentTime, checkedIn, handleCheckIn, date, setDate, role, setToast }: { greeting: string; formattedDate: string; currentTime: Date; checkedIn: boolean; handleCheckIn: () => void; date: Date; setDate: (date: Date) => void; role: string; setToast: (message: string) => void }) {
