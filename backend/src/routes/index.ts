@@ -4,10 +4,14 @@ import employeesRouter from './employees';
 import attendanceRouter from './attendance';
 import leavesRouter from './leaves';
 import payrollRouter from './payroll';
+import authRouter from './auth';
+import tasksRouter from './tasks';
 
 const router = Router();
 
 router.use('/health', healthRouter);
+router.use('/auth', authRouter);
+router.use('/tasks', tasksRouter);
 router.use('/employees', employeesRouter);
 router.use('/attendance', attendanceRouter);
 router.use('/leaves', leavesRouter);
